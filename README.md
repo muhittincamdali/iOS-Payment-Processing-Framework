@@ -118,7 +118,7 @@ paymentProcessor.processPayment(paymentRequest) { result in
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## ⭐ Star this repository if it helped you!
+**⭐ Star this repository if it helped you!**
 
 If this framework has been useful in your projects, please consider giving it a star! Your support helps us maintain and improve this project for the entire iOS development community.
 
