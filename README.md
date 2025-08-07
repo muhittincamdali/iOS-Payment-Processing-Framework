@@ -125,7 +125,6 @@ applePayConfig.merchantIdentifier = "merchant.com.company.app"
 applePayConfig.supportedNetworks = [.visa, .masterCard, .amex]
 applePayConfig.supportedCapabilities = [.capability3DS, .capabilityEMV]
 applePayConfig.countryCode = "US"
-applePayConfig.currencyCode = "USD"
 
 // Setup Apple Pay
 applePayManager.configure(applePayConfig)
@@ -133,7 +132,6 @@ applePayManager.configure(applePayConfig)
 // Create payment request
 let paymentRequest = ApplePayPaymentRequest()
 paymentRequest.amount = 29.99
-paymentRequest.currency = "USD"
 paymentRequest.merchantIdentifier = "merchant.com.company.app"
 paymentRequest.paymentSummaryItems = [
     PaymentSummaryItem(label: "Product", amount: 29.99),
@@ -173,8 +171,6 @@ stripeManager.configure(stripeConfig)
 
 // Create payment intent
 let paymentIntent = StripePaymentIntent(
-    amount: 3298, // $32.98 in cents
-    currency: "usd",
     paymentMethodTypes: ["card", "apple_pay"]
 )
 
@@ -211,7 +207,6 @@ paypalManager.configure(paypalConfig)
 // Create PayPal payment
 let paypalPayment = PayPalPayment(
     amount: 32.98,
-    currency: "USD",
     shortDescription: "Product Purchase",
     intent: .sale
 )
@@ -302,7 +297,6 @@ fraudManager.configure(fraudConfig)
 // Analyze payment for fraud
 let paymentContext = PaymentContext(
     amount: 32.98,
-    currency: "USD",
     deviceInfo: deviceInfo,
     userInfo: userInfo,
     location: userLocation
@@ -339,7 +333,6 @@ let pciManager = PCIComplianceManager()
 let pciConfig = PCIComplianceConfiguration()
 pciConfig.enableTokenization = true
 pciConfig.enableEncryption = true
-pciConfig.enableAuditLogging = true
 pciConfig.enableDataRetention = true
 
 // Setup PCI compliance
@@ -352,7 +345,6 @@ pciManager.validateCompliance { result in
         print("✅ PCI compliance validated")
         print("Tokenization: \(compliance.tokenizationEnabled)")
         print("Encryption: \(compliance.encryptionEnabled)")
-        print("Audit logging: \(compliance.auditLoggingEnabled)")
         print("Data retention: \(compliance.dataRetentionEnabled)")
     case .failure(let error):
         print("❌ PCI compliance validation failed: \(error)")
@@ -422,7 +414,6 @@ gdprManager.handleDataSubjectRequest(
 
 ```bash
 # Clone the repository
-git clone https://github.com/muhittincamdali/iOS-Payment-Processing-Framework.git
 
 # Navigate to project directory
 cd iOS-Payment-Processing-Framework
@@ -440,7 +431,6 @@ Add the framework to your project:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/muhittincamdali/iOS-Payment-Processing-Framework.git", from: "1.0.0")
 ]
 ```
 
@@ -483,7 +473,6 @@ let simplePayment = SimplePaymentProcessor()
 // Process payment
 simplePayment.processPayment(
     amount: 32.98,
-    currency: "USD",
     method: .applePay
 ) { result in
     switch result {
@@ -508,7 +497,6 @@ let subscriptionPayment = SubscriptionPaymentProcessor()
 subscriptionPayment.createSubscription(
     planId: "premium_monthly",
     amount: 9.99,
-    currency: "USD"
 ) { result in
     switch result {
     case .success(let subscription):
@@ -539,7 +527,6 @@ paymentConfig.enablePayPal = true
 paymentConfig.enableCreditCards = true
 
 // Set payment settings
-paymentConfig.defaultCurrency = "USD"
 paymentConfig.enable3DSecure = true
 paymentConfig.enableFraudDetection = true
 paymentConfig.enableCompliance = true
@@ -548,7 +535,6 @@ paymentConfig.enableCompliance = true
 paymentConfig.enableTokenization = true
 paymentConfig.enableEncryption = true
 paymentConfig.enablePCICompliance = true
-paymentConfig.enableAuditLogging = true
 
 // Apply configuration
 paymentManager.configure(paymentConfig)
@@ -642,15 +628,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 <div align="center">
 
-[![GitHub stars](https://img.shields.io/github/stars/muhittincamdali/iOS-Payment-Processing-Framework?style=social)](https://github.com/muhittincamdali/iOS-Payment-Processing-Framework/stargazers)
-[![GitHub forks](https://img.shields.io/github/forks/muhittincamdali/iOS-Payment-Processing-Framework?style=social)](https://github.com/muhittincamdali/iOS-Payment-Processing-Framework/network)
-[![GitHub issues](https://img.shields.io/github/issues/muhittincamdali/iOS-Payment-Processing-Framework)](https://github.com/muhittincamdali/iOS-Payment-Processing-Framework/issues)
-[![GitHub pull requests](https://img.shields.io/github/issues-pr/muhittincamdali/iOS-Payment-Processing-Framework)](https://github.com/muhittincamdali/iOS-Payment-Processing-Framework/pulls)
-[![GitHub contributors](https://img.shields.io/github/contributors/muhittincamdali/iOS-Payment-Processing-Framework)](https://github.com/muhittincamdali/iOS-Payment-Processing-Framework/graphs/contributors)
-[![GitHub last commit](https://img.shields.io/github/last-commit/muhittincamdali/iOS-Payment-Processing-Framework)](https://github.com/muhittincamdali/iOS-Payment-Processing-Framework/commits/master)
 
 </div>
 
 ## 🌟 Stargazers
 
-[![Stargazers repo roster for @muhittincamdali/iOS-Payment-Processing-Framework](https://reporoster.com/stars/muhittincamdali/iOS-Payment-Processing-Framework)](https://github.com/muhittincamdali/iOS-Payment-Processing-Framework/stargazers) 
