@@ -1,4 +1,5 @@
 # 💳 iOS Payment Processing Framework
+[![CI](https://github.com/muhittincamdali/iOS-Payment-Processing-Framework/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/muhittincamdali/iOS-Payment-Processing-Framework/actions/workflows/ci.yml)
 
 <!-- TOC START -->
 ## Table of Contents
