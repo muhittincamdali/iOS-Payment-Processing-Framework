@@ -1,5 +1,49 @@
 # Getting Started Guide
 
+<!-- TOC START -->
+## Table of Contents
+- [Getting Started Guide](#getting-started-guide)
+- [Table of Contents](#table-of-contents)
+- [Installation](#installation)
+  - [Swift Package Manager](#swift-package-manager)
+  - [CocoaPods](#cocoapods)
+- [Quick Start](#quick-start)
+  - [1. Initialize the Payment Processor](#1-initialize-the-payment-processor)
+  - [2. Configure Payment Methods](#2-configure-payment-methods)
+  - [3. Process a Payment](#3-process-a-payment)
+- [Configuration](#configuration)
+  - [Environment Setup](#environment-setup)
+  - [Fraud Detection Configuration](#fraud-detection-configuration)
+- [Payment Methods](#payment-methods)
+  - [Credit Card Processing](#credit-card-processing)
+  - [Apple Pay Integration](#apple-pay-integration)
+  - [PayPal Integration](#paypal-integration)
+- [Security Features](#security-features)
+  - [Card Tokenization](#card-tokenization)
+  - [Fraud Detection](#fraud-detection)
+- [Analytics & Reporting](#analytics-reporting)
+  - [Transaction Analytics](#transaction-analytics)
+  - [Real-time Analytics](#real-time-analytics)
+  - [Generate Reports](#generate-reports)
+- [SwiftUI Integration](#swiftui-integration)
+  - [Payment Sheet](#payment-sheet)
+  - [Custom Payment Form](#custom-payment-form)
+- [Best Practices](#best-practices)
+  - [1. Error Handling](#1-error-handling)
+  - [2. Security](#2-security)
+  - [3. Performance](#3-performance)
+  - [4. User Experience](#4-user-experience)
+- [Troubleshooting](#troubleshooting)
+  - [Common Issues](#common-issues)
+    - [1. Network Errors](#1-network-errors)
+    - [2. Authentication Errors](#2-authentication-errors)
+    - [3. Card Validation Errors](#3-card-validation-errors)
+  - [Debug Mode](#debug-mode)
+  - [Support](#support)
+- [Next Steps](#next-steps)
+<!-- TOC END -->
+
+
 Welcome to the iOS Payment Processing Framework! This comprehensive guide will help you integrate secure, enterprise-grade payment processing into your iOS applications.
 
 ## Table of Contents
