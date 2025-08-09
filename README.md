@@ -642,15 +642,23 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 <div align="center">
 
-[![GitHub stars](https://img.shields.io/github/stars/muhittincamdali/iOS-Payment-Processing-Framework?style=social)](https://github.com/muhittincamdali/iOS-Payment-Processing-Framework/stargazers)
-[![GitHub forks](https://img.shields.io/github/forks/muhittincamdali/iOS-Payment-Processing-Framework?style=social)](https://github.com/muhittincamdali/iOS-Payment-Processing-Framework/network)
-[![GitHub issues](https://img.shields.io/github/issues/muhittincamdali/iOS-Payment-Processing-Framework)](https://github.com/muhittincamdali/iOS-Payment-Processing-Framework/issues)
-[![GitHub pull requests](https://img.shields.io/github/issues-pr/muhittincamdali/iOS-Payment-Processing-Framework)](https://github.com/muhittincamdali/iOS-Payment-Processing-Framework/pulls)
-[![GitHub contributors](https://img.shields.io/github/contributors/muhittincamdali/iOS-Payment-Processing-Framework)](https://github.com/muhittincamdali/iOS-Payment-Processing-Framework/graphs/contributors)
-[![GitHub last commit](https://img.shields.io/github/last-commit/muhittincamdali/iOS-Payment-Processing-Framework)](https://github.com/muhittincamdali/iOS-Payment-Processing-Framework/commits/master)
+[![GitHub stars](https://img.shields.io/github/stars/muhittincamdali/iOS-Payment-Processing-Framework?style=flat-square&logo=github)](https://github.com/muhittincamdali/iOS-Payment-Processing-Framework/stargazers)
+[![GitHub forks](https://img.shields.io/github/forks/muhittincamdali/iOS-Payment-Processing-Framework?style=flat-square&logo=github)](https://github.com/muhittincamdali/iOS-Payment-Processing-Framework/network)
+[![GitHub issues](https://img.shields.io/github/issues/muhittincamdali/iOS-Payment-Processing-Framework?style=flat-square&logo=github)](https://github.com/muhittincamdali/iOS-Payment-Processing-Framework/issues)
+[![GitHub pull requests](https://img.shields.io/github/issues-pr/muhittincamdali/iOS-Payment-Processing-Framework?style=flat-square&logo=github)](https://github.com/muhittincamdali/iOS-Payment-Processing-Framework/pulls)
+[![GitHub contributors](https://img.shields.io/github/contributors/muhittincamdali/iOS-Payment-Processing-Framework?style=flat-square&logo=github)](https://github.com/muhittincamdali/iOS-Payment-Processing-Framework/graphs/contributors)
+[![GitHub last commit](https://img.shields.io/github/last-commit/muhittincamdali/iOS-Payment-Processing-Framework?style=flat-square&logo=github)](https://github.com/muhittincamdali/iOS-Payment-Processing-Framework/commits/master)
 
 </div>
 
 ## 🌟 Stargazers
 
-[![Stargazers repo roster for @muhittincamdali/iOS-Payment-Processing-Framework](https://reporoster.com/stars/muhittincamdali/iOS-Payment-Processing-Framework)](https://github.com/muhittincamdali/iOS-Payment-Processing-Framework/stargazers) 
+[![Stargazers repo roster for @muhittincamdali/iOS-Payment-Processing-Framework](https://starchart.cc/muhittincamdali/iOS-Payment-Processing-Framework.svg)](https://github.com/muhittincamdali/iOS-Payment-Processing-Framework/stargazers)
+
+<div align="center">
+
+[![GitHub Stats](https://github-readme-stats.vercel.app/api?username=muhittincamdali&show_icons=true&theme=radical)](https://github.com/muhittincamdali)
+[![Top Languages](https://github-readme-stats.vercel.app/api/top-langs/?username=muhittincamdali&layout=compact&theme=radical)](https://github.com/muhittincamdali)
+[![GitHub Streak](https://streak-stats.demolab.com/?user=muhittincamdali&theme=radical)](https://github.com/muhittincamdali)
+
+</div> 
