@@ -1,5 +1,52 @@
 # Testing Guide
 
+<!-- TOC START -->
+## Table of Contents
+- [Testing Guide](#testing-guide)
+- [Table of Contents](#table-of-contents)
+- [Testing Overview](#testing-overview)
+  - [Testing Strategy](#testing-strategy)
+  - [Test Coverage](#test-coverage)
+- [Unit Testing](#unit-testing)
+  - [PaymentProcessor Tests](#paymentprocessor-tests)
+  - [SecurityManager Tests](#securitymanager-tests)
+  - [FraudDetector Tests](#frauddetector-tests)
+- [Integration Testing](#integration-testing)
+  - [Payment Flow Tests](#payment-flow-tests)
+  - [Network Integration Tests](#network-integration-tests)
+- [UI Testing](#ui-testing)
+  - [PaymentSheet UI Tests](#paymentsheet-ui-tests)
+  - [Accessibility Tests](#accessibility-tests)
+- [Performance Testing](#performance-testing)
+  - [Payment Processing Performance](#payment-processing-performance)
+  - [Memory Usage Tests](#memory-usage-tests)
+- [Security Testing](#security-testing)
+  - [Encryption Tests](#encryption-tests)
+  - [Fraud Detection Tests](#fraud-detection-tests)
+- [Test Coverage](#test-coverage)
+  - [Coverage Report](#coverage-report)
+- [Generate coverage report](#generate-coverage-report)
+- [View coverage report](#view-coverage-report)
+  - [Coverage Targets](#coverage-targets)
+- [Best Practices](#best-practices)
+  - [Test Organization](#test-organization)
+  - [Mocking](#mocking)
+  - [Test Data](#test-data)
+- [Running Tests](#running-tests)
+  - [Command Line](#command-line)
+- [Run all tests](#run-all-tests)
+- [Run specific test suite](#run-specific-test-suite)
+- [Run with coverage](#run-with-coverage)
+- [Run performance tests](#run-performance-tests)
+  - [Xcode](#xcode)
+  - [Continuous Integration](#continuous-integration)
+- [GitHub Actions example](#github-actions-example)
+- [Test Maintenance](#test-maintenance)
+  - [Regular Updates](#regular-updates)
+  - [Test Documentation](#test-documentation)
+<!-- TOC END -->
+
+
 Comprehensive testing documentation for the iOS Payment Processing Framework.
 
 ## Table of Contents
