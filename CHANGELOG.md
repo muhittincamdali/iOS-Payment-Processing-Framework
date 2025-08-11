@@ -302,4 +302,60 @@ For support and questions:
 - [Documentation](Documentation/)
 - [GitHub Issues](https://github.com/muhittincamdali/iOS-Payment-Processing-Framework/issues)
 - [GitHub Discussions](https://github.com/muhittincamdali/iOS-Payment-Processing-Framework/discussions)
-- Email: support@paymentframework.com 
+- Email: support@paymentframework.com # iOS-Payment-Processing-Framework - Update 1
+# iOS-Payment-Processing-Framework - Update 2
+# iOS-Payment-Processing-Framework - Update 3
+# iOS-Payment-Processing-Framework - Update 4
+# iOS-Payment-Processing-Framework - Update 5
+# iOS-Payment-Processing-Framework - Update 6
+# iOS-Payment-Processing-Framework - Update 7
+# iOS-Payment-Processing-Framework - Update 8
+# iOS-Payment-Processing-Framework - Update 9
+# iOS-Payment-Processing-Framework - Update 10
+# iOS-Payment-Processing-Framework - Update 11
+# iOS-Payment-Processing-Framework - Update 12
+# iOS-Payment-Processing-Framework - Update 13
+# iOS-Payment-Processing-Framework - Update 14
+# iOS-Payment-Processing-Framework - Update 15
+# iOS-Payment-Processing-Framework - Update 16
+# iOS-Payment-Processing-Framework - Update 17
+# iOS-Payment-Processing-Framework - Update 18
+# iOS-Payment-Processing-Framework - Update 19
+# iOS-Payment-Processing-Framework - Update 20
+# iOS-Payment-Processing-Framework - Update 21
+# iOS-Payment-Processing-Framework - Update 22
+# iOS-Payment-Processing-Framework - Update 23
+# iOS-Payment-Processing-Framework - Update 24
+# iOS-Payment-Processing-Framework - Update 25
+# iOS-Payment-Processing-Framework - Update 26
+# iOS-Payment-Processing-Framework - Update 27
+# iOS-Payment-Processing-Framework - Update 28
+# iOS-Payment-Processing-Framework - Update 29
+# iOS-Payment-Processing-Framework - Update 30
+# iOS-Payment-Processing-Framework - Update 31
+# iOS-Payment-Processing-Framework - Update 32
+# iOS-Payment-Processing-Framework - Update 33
+# iOS-Payment-Processing-Framework - Update 34
+# iOS-Payment-Processing-Framework - Update 35
+# iOS-Payment-Processing-Framework - Update 36
+# iOS-Payment-Processing-Framework - Update 37
+# iOS-Payment-Processing-Framework - Update 38
+# iOS-Payment-Processing-Framework - Update 39
+# iOS-Payment-Processing-Framework - Update 40
+# iOS-Payment-Processing-Framework - Update 41
+# iOS-Payment-Processing-Framework - Update 42
+# iOS-Payment-Processing-Framework - Update 43
+# iOS-Payment-Processing-Framework - Update 44
+# iOS-Payment-Processing-Framework - Update 45
+# iOS-Payment-Processing-Framework - Update 46
+# iOS-Payment-Processing-Framework - Update 47
+# iOS-Payment-Processing-Framework - Update 48
+# iOS-Payment-Processing-Framework - Update 49
+# iOS-Payment-Processing-Framework - Update 50
+# iOS-Payment-Processing-Framework - Update 51
+# iOS-Payment-Processing-Framework - Update 52
+# iOS-Payment-Processing-Framework - Update 53
+# iOS-Payment-Processing-Framework - Update 54
+# iOS-Payment-Processing-Framework - Update 55
+# iOS-Payment-Processing-Framework - Update 56
+# iOS-Payment-Processing-Framework - Update 57
