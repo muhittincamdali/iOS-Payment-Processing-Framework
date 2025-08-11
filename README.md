@@ -665,3 +665,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 [![GitHub Streak](https://streak-stats.demolab.com/?user=muhittincamdali&theme=radical)](https://github.com/muhittincamdali)
 
 </div> 
+
+## 🌟 Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=muhittincamdali/iOS-Payment-Processing-Framework&type=Date)](https://star-history.com/#muhittincamdali/iOS-Payment-Processing-Framework&Date)
+
