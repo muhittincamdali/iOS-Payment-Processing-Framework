@@ -656,8 +656,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 🌟 Stargazers
 
-[![Stargazers repo roster for @muhittincamdali/iOS-Payment-Processing-Framework](https://starchart.cc/muhittincamdali/iOS-Payment-Processing-Framework.svg)](https://github.com/muhittincamdali/iOS-Payment-Processing-Framework/stargazers)
-
 <div align="center">
 
 [![GitHub Stats](https://github-readme-stats.vercel.app/api?username=muhittincamdali&show_icons=true&theme=radical)](https://github.com/muhittincamdali)
