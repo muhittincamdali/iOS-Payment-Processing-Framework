@@ -1,0 +1,3 @@
+warning: 'ios-payment-processing-framework': Invalid Resource 'Resources': File not found.
+warning: 'ios-payment-processing-framework': Source files for target PaymentProcessingAnalytics should be located under 'Sources/PaymentProcessingAnalytics', or a custom sources path can be set with the 'path' property in Package.swift
+error: 'ios-payment-processing-framework': target 'PaymentProcessingAnalytics' referenced in product 'PaymentProcessingAnalytics' is empty
