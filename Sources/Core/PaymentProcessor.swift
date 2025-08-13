@@ -206,12 +206,11 @@ public final class PaymentProcessor {
     }
     
     private func validateConfiguration() {
-        guard !configuration.merchantId.isEmpty else {
-            fatalError("Merchant ID cannot be empty")
+        if configuration.merchantId.isEmpty {
+            logger.error("Merchant ID cannot be empty")
         }
-        
-        guard !configuration.apiKey.isEmpty else {
-            fatalError("API Key cannot be empty")
+        if configuration.apiKey.isEmpty {
+            logger.error("API Key cannot be empty")
         }
     }
     
