@@ -662,3 +662,15 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 <p align="center">
   Built with ❤️ by <a href="https://github.com/muhittincamdali">Muhittin Camdali</a>
 </p>
+
+---
+
+## 📈 Star History
+
+<a href="https://star-history.com/#muhittincamdali/iOS-Payment-Processing-Framework&Date">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=muhittincamdali/iOS-Payment-Processing-Framework&type=Date&theme=dark" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=muhittincamdali/iOS-Payment-Processing-Framework&type=Date" />
+   <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=muhittincamdali/iOS-Payment-Processing-Framework&type=Date" />
+ </picture>
+</a>
