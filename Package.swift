@@ -4,32 +4,38 @@
 import PackageDescription
 
 let package = Package(
-    name: "iOSPaymentProcessingFramework",
+    name: "PaymentProcessingFramework",
     platforms: [
         .iOS(.v15),
-        .macOS(.v12)
+        .macOS(.v12),
+        .tvOS(.v15),
+        .watchOS(.v8)
     ],
     products: [
+        // Main framework with all StoreKit 2 features
         .library(
             name: "PaymentProcessingFramework",
             targets: ["PaymentProcessingFramework"]
         ),
+        // UI components including PaywallView
         .library(
             name: "PaymentProcessingUI",
             targets: ["PaymentProcessingUI"]
         ),
+        // Analytics module
         .library(
             name: "PaymentProcessingAnalytics",
             targets: ["PaymentProcessingAnalytics"]
         )
     ],
     dependencies: [
-        .package(url: "https://github.com/apple/swift-crypto.git", from: "2.0.0"),
-        .package(url: "https://github.com/apple/swift-log.git", from: "1.0.0"),
+        .package(url: "https://github.com/apple/swift-crypto.git", from: "3.0.0"),
+        .package(url: "https://github.com/apple/swift-log.git", from: "1.5.0"),
         .package(url: "https://github.com/apple/swift-async-algorithms.git", from: "1.0.0"),
-        .package(url: "https://github.com/apple/swift-collections.git", from: "1.0.0")
+        .package(url: "https://github.com/apple/swift-collections.git", from: "1.1.0")
     ],
     targets: [
+        // Core Framework
         .target(
             name: "PaymentProcessingFramework",
             dependencies: [
@@ -39,24 +45,35 @@ let package = Package(
                 .product(name: "Collections", package: "swift-collections")
             ],
             path: "Sources/Core",
+            exclude: [],
+            sources: nil,
+            resources: nil,
+            publicHeadersPath: nil,
+            cSettings: nil,
+            cxxSettings: nil,
             swiftSettings: [
                 .define("DEBUG", .when(configuration: .debug)),
-                .define("RELEASE", .when(configuration: .release))
-            ]
+                .define("RELEASE", .when(configuration: .release)),
+                .enableUpcomingFeature("StrictConcurrency")
+            ],
+            linkerSettings: nil
         ),
+        // UI Components
         .target(
             name: "PaymentProcessingUI",
             dependencies: ["PaymentProcessingFramework"],
             path: "Sources/UI",
-            resources: [
-                .process("Resources")
+            swiftSettings: [
+                .define("DEBUG", .when(configuration: .debug))
             ]
         ),
+        // Analytics
         .target(
             name: "PaymentProcessingAnalytics",
             dependencies: ["PaymentProcessingFramework"],
             path: "Sources/Analytics"
         ),
+        // Tests
         .testTarget(
             name: "PaymentProcessingFrameworkTests",
             dependencies: ["PaymentProcessingFramework"],
@@ -72,5 +89,6 @@ let package = Package(
             dependencies: ["PaymentProcessingAnalytics"],
             path: "Tests/Analytics"
         )
-    ]
-) 
+    ],
+    swiftLanguageVersions: [.v5]
+)
