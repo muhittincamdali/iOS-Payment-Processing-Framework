@@ -1,0 +1,3 @@
+module iOSPaymentProcessing {
+    header "/Users/muhittincamdali/Desktop/Claude Projects/GitHub/iOS-Payment-Processing-Framework/.build/arm64-apple-macosx/debug/iOSPaymentProcessing.build/include/iOSPaymentProcessing-Swift.h"
+}
