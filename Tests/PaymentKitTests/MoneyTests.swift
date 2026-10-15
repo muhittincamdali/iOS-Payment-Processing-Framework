@@ -205,6 +205,23 @@ struct MoneyParsingTests {
         #expect(throws: MoneyError.invalidText) { try Money(text, .usd) }
     }
 
+    @Test("digits beyond what Decimal holds exactly throw instead of being rounded")
+    func significantDigits() throws {
+        let tinyFraction = "1." + String(repeating: "0", count: 38) + "1"
+        #expect(throws: MoneyError.tooManyFractionDigits(currency: .jpy)) { try Money(tinyFraction, .jpy) }
+        #expect(throws: MoneyError.tooManyFractionDigits(currency: .usd)) { try Money(tinyFraction, .usd) }
+        #expect(throws: MoneyError.tooManyFractionDigits(currency: .jpy)) {
+            try Money(parsing: tinyFraction, currency: .jpy, locale: Locale(identifier: "en_US"))
+        }
+        let huge = String(repeating: "9", count: 39)
+        #expect(throws: MoneyError.outOfRange) { try Money(huge, .usd) }
+        #expect(throws: MoneyError.outOfRange) { try Money(huge + ".5", .usd) }
+        // Leading and trailing zeros are not significant.
+        #expect(try Money(String(repeating: "0", count: 50) + "12.5", .usd).minorUnits == 1250)
+        #expect(try Money("12." + String(repeating: "0", count: 50), .jpy).minorUnits == 12)
+        #expect(throws: MoneyError.tooManyFractionDigits(currency: .usd)) { try Money("-0." + String(repeating: "0", count: 50) + "1", .usd) }
+    }
+
     @Test("long input throws before it is scanned")
     func longInput() throws {
         let long = String(repeating: "9", count: 100_000)

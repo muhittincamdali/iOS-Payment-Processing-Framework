@@ -13,7 +13,7 @@ extension Money {
     /// - Throws: ``MoneyError/invalidText``, ``MoneyError/tooManyFractionDigits(currency:)`` or
     ///   ``MoneyError/outOfRange``.
     public init(_ text: String, _ currency: Currency) throws(MoneyError) {
-        let decimal = try Self.strictDecimal(text)
+        let decimal = try Self.strictDecimal(text, currency: currency)
         try self.init(decimal, currency)
     }
 
@@ -38,7 +38,7 @@ extension Money {
             decimalSeparator: locale.decimalSeparator ?? ".",
             groupingSeparator: locale.groupingSeparator ?? ","
         )
-        let decimal = try Self.strictDecimal(plain)
+        let decimal = try Self.strictDecimal(plain, currency: currency)
         try self.init(decimal, currency)
     }
 
@@ -79,20 +79,36 @@ extension Money {
         return groups.dropFirst().dropLast().allSatisfy { (2...3).contains($0.count) }
     }
 
+    /// The most significant digits a `Decimal` always holds exactly; it rounds longer numbers.
+    static let maximumSignificantDigits = 38
+
     /// Parses `-?[0-9]+(\.[0-9]+)?` with ASCII digits only.
-    static func strictDecimal(_ text: String) throws(MoneyError) -> Decimal {
+    ///
+    /// A number with more than `maximumSignificantDigits` significant digits throws instead of
+    /// being rounded by `Decimal`: ``MoneyError/outOfRange`` when its whole part alone is too
+    /// large for any currency, else ``MoneyError/tooManyFractionDigits(currency:)``.
+    static func strictDecimal(_ text: String, currency: Currency) throws(MoneyError) -> Decimal {
         let bytes = Array(text.utf8)
         guard (1...maximumTextLength).contains(bytes.count) else { throw .invalidText }
         var index = bytes.first == UInt8(ascii: "-") ? 1 : 0
         let integerStart = index
         while index < bytes.count, bytes[index].isASCIIDigit { index += 1 }
-        guard index > integerStart else { throw .invalidText }
+        let integerEnd = index
+        guard integerEnd > integerStart else { throw .invalidText }
         if index < bytes.count {
             guard bytes[index] == UInt8(ascii: ".") else { throw .invalidText }
             index += 1
             let fractionStart = index
             while index < bytes.count, bytes[index].isASCIIDigit { index += 1 }
             guard index > fractionStart, index == bytes.count else { throw .invalidText }
+        }
+        let digits = bytes[integerStart...].filter { $0 != UInt8(ascii: ".") }
+        let isZero = { (byte: UInt8) in byte == UInt8(ascii: "0") }
+        let significant = digits.drop(while: isZero).reversed().drop(while: isZero).count
+        if significant > maximumSignificantDigits {
+            let wholeDigits = bytes[integerStart..<integerEnd].drop(while: isZero).count
+            // A whole part with more digits than maximumMinorUnits is too large in any currency.
+            throw wholeDigits > String(maximumMinorUnits).count ? .outOfRange : .tooManyFractionDigits(currency: currency)
         }
         guard let decimal = Decimal(string: text, locale: Locale(identifier: "en_US_POSIX")) else {
             throw .invalidText
