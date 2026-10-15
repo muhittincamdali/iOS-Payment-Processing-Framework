@@ -73,7 +73,7 @@ Buy and an expiry under an accelerated clock:
 let session = try SKTestSession(configurationFileNamed: "Products")
 session.disableDialogs = true
 session.clearTransactions()
-session.timeRate = .oneSecondIsOneDay // a one-week trial ends after about 7 seconds
+session.timeRate = .monthlyRenewalEveryThirtySeconds // a one-week trial ends after about 7 seconds
 ```
 
 Two things to know about StoreKit testing in Xcode:

@@ -129,7 +129,7 @@ struct StoreKitEndToEndTests {
     @Test("a subscription that runs out is removed when it expires, without a manual refresh")
     func expiry() async throws {
         // One day passes every second, so the monthly plan's free week ends after about 7 s.
-        session.timeRate = .oneSecondIsOneDay
+        session.timeRate = .monthlyRenewalEveryThirtySeconds
         let model = makeModel()
         let store = try await started(model)
         let monthly = try #require(store.product(withID: "pro.monthly"))
