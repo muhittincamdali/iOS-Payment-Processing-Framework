@@ -46,6 +46,11 @@ struct CardNumberTests {
         #expect(throws: CardValidationError.invalidLength(.unknown)) { try CardNumber("12345678901") }
         #expect(throws: CardValidationError.invalidLength(.unknown)) { try CardNumber("12345678901234567890") }
         #expect(throws: CardValidationError.failedChecksum) { try CardNumber("4242424242424241") }
+        // All zeros pass the Luhn check; no payment card starts with 0.
+        #expect(throws: CardValidationError.invalidIssuer) { try CardNumber("0000 0000 0000") }
+        #expect(throws: CardValidationError.invalidIssuer) { try CardNumber("0000000000000000") }
+        #expect(throws: CardValidationError.invalidIssuer) { try CardNumber("0424242424242424") }
+        #expect(throws: CardValidationError.invalidIssuer) { try CardNumber("0") }
         // UnionPay numbers may have no Luhn digit.
         #expect(throws: Never.self) { try CardNumber("6200000000000006") }
     }

@@ -36,8 +36,9 @@ error per bad field, so every field can show its own message.
 - ``CardNumber`` accepts digits with spaces or dashes, up to ``CardNumber/maximumInputLength``
   characters. It detects the ``CardBrand`` from the first digits (Visa, Mastercard including
   the 2-series, American Express, Discover, JCB, Diners Club, UnionPay, Maestro, Mir), checks
-  the lengths that brand issues and the Luhn check digit. UnionPay numbers are not
-  Luhn-checked, because some have no check digit.
+  the lengths that brand issues and the Luhn check digit, and rejects numbers that start with 0,
+  such as `0000 0000 0000`, which passes the Luhn check but belongs to no card issuer. UnionPay
+  numbers are not Luhn-checked, because some have no check digit.
 - ``CardExpiry`` parses `MM/YY`, `M/YY`, `MMYY` and `MM/YYYY`. A card is valid through the
   last moment of its month in the Gregorian calendar, whatever calendar the device uses, in the
   time zone of the calendar you pass. Years more than ``CardExpiry/maximumYearsAhead`` years

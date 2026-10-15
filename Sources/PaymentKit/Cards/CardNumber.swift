@@ -27,7 +27,8 @@ public struct CardNumber: Hashable, Sendable {
     /// Validates a card number as typed or pasted, with or without spaces and dashes.
     ///
     /// - Throws: ``CardValidationError/empty``, ``CardValidationError/invalidCharacters``,
-    ///   ``CardValidationError/invalidLength(_:)`` or ``CardValidationError/failedChecksum``.
+    ///   ``CardValidationError/invalidIssuer``, ``CardValidationError/invalidLength(_:)`` or
+    ///   ``CardValidationError/failedChecksum``.
     public init(_ text: some StringProtocol) throws(CardValidationError) {
         guard text.utf8.count <= Self.maximumInputLength else { throw .invalidCharacters }
         var digits = ""
@@ -39,6 +40,7 @@ public struct CardNumber: Hashable, Sendable {
             }
         }
         guard !digits.isEmpty else { throw .empty }
+        guard digits.utf8.first != UInt8(ascii: "0") else { throw .invalidIssuer }
         let brand = CardBrand.detect(fromLeadingDigits: digits)
         guard brand.validLengths.contains(digits.utf8.count) else { throw .invalidLength(brand) }
         guard !brand.usesLuhnCheck || Self.passesLuhnCheck(digits) else { throw .failedChecksum }

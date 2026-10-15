@@ -14,6 +14,9 @@ public enum CardValidationError: Error, Hashable, Sendable {
     case invalidLength(CardBrand)
     /// The last digit does not match the Luhn check digit, which usually means a typo.
     case failedChecksum
+    /// The number starts with 0, an industry identifier (ISO/IEC 7812) that payment cards do not
+    /// use; an all-zero number such as `0000 0000 0000` passes the Luhn check but is not a card.
+    case invalidIssuer
     /// The expiry text is not `MM/YY` or `MM/YYYY`.
     case invalidExpiryFormat
     /// The expiry month is not 1 to 12.
@@ -35,6 +38,7 @@ extension CardValidationError: LocalizedError {
         case .invalidCharacters: "A card number has only digits."
         case .invalidLength(let brand): "This isn't a valid \(brand.displayName) number length."
         case .failedChecksum: "Check the card number for a typo."
+        case .invalidIssuer: "This isn't a card number."
         case .invalidExpiryFormat: "Enter the expiry date as MM/YY."
         case .invalidMonth: "The expiry month must be 01 to 12."
         case .invalidYear: "Enter a valid expiry year."
