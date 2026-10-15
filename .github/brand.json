@@ -1,0 +1,44 @@
+{
+  "name": "PaymentKit",
+  "repository": "muhittincamdali/iOS-Payment-Processing-Framework",
+  "branch": "master",
+  "tagline": {
+    "en": "Sell in-app purchases with StoreKit 2, take Apple Pay and keep money exact on Apple platforms."
+  },
+  "tags": {
+    "en": [
+      "Swift 6",
+      "StoreKit 2",
+      "Apple Pay",
+      "No dependencies"
+    ]
+  },
+  "motif": "phone",
+  "buttons": [
+    "start",
+    "docs",
+    "examples"
+  ],
+  "links": {
+    "docs": "https://muhittincamdali.github.io/iOS-Payment-Processing-Framework/documentation/paymentkit/",
+    "examples": "Examples/"
+  },
+  "languages": [
+    "en",
+    "tr",
+    "zh-CN",
+    "ja",
+    "ko",
+    "es",
+    "de",
+    "fr",
+    "pt-BR",
+    "ru"
+  ],
+  "docc": {
+    "targets": [
+      "PaymentKit"
+    ]
+  },
+  "socialTheme": "dark"
+}
