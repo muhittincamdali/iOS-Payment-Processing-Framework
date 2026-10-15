@@ -47,12 +47,14 @@ purchases with Apple's App Store Server Library; see <doc:VerifyingPurchasesOnYo
 - ``PurchaseOptions``
 - ``Entitlement``
 - ``EntitlementResolver``
+- ``ConsumableLedger``
 - ``StoreError``
 
 ### Transactions and the App Store
 
 - ``StoreTransaction``
 - ``TransactionEvent``
+- ``TransactionChange``
 - ``StoreClient``
 - ``AppStoreClient``
 - ``PurchaseResult``

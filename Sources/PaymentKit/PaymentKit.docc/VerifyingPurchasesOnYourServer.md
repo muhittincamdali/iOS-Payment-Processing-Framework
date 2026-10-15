@@ -22,10 +22,12 @@ chain up to Apple's root certificate with Apple's App Store Server Library, whic
 
 Deliver to the server inside the `deliver` closure of ``Store``. The transaction is finished
 only after the server answered, so a purchase made while the server was unreachable is sent
-again on the next launch:
+again on the next launch. Refunds come through the same closure as
+``TransactionChange/revoked(_:)``, with the same signed transaction:
 
 ```swift
-let store = Store(catalog: catalog) { transaction in
+let store = Store(catalog: catalog) { change in
+    let transaction = change.transaction
     var request = URLRequest(url: URL(string: "https://api.example.com/v1/transactions")!)
     request.httpMethod = "POST"
     request.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -36,6 +38,9 @@ let store = Store(catalog: catalog) { transaction in
     }
 }
 ```
+
+The closure runs at least once per transaction, so the server must treat a repeat of a
+transaction identifier as a repeat, not a new purchase.
 
 Purchase with an app account token (``PurchaseOptions/appAccountToken``) so the server knows
 which account the transaction belongs to. The token is part of the signed data, so it cannot be

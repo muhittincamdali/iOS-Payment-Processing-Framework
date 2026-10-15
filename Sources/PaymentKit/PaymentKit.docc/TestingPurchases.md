@@ -33,6 +33,11 @@ func refundRemovesPro() async throws -> Bool {
   subscription (``TestStoreClient/renew(_:)``) or record a purchase made on another device
   (``TestStoreClient/purchaseOnAnotherDevice(_:)``); these arrive as updates, as they would from
   the App Store;
+- refund a transaction or revoke a family member's shared purchase
+  (``TestStoreClient/refund(_:)``), move a subscriber to a higher plan
+  (``TestStoreClient/upgrade(from:to:)``), share a purchase from a family member
+  (``TestStoreClient/shareFromFamily(_:)``) or send a transaction again
+  (``TestStoreClient/redeliver(_:)``), to check that repeats and refunds never grant twice;
 - report which transactions were finished
   (``TestStoreClient/finishedTransactionIDs``) and which are still unfinished.
 
@@ -43,6 +48,20 @@ let start = Date()
 let client = TestStoreClient(products: products) { start }
 let store = Store(catalog: catalog, client: client, now: { start.addingTimeInterval(40 * 86_400) })
 ```
+
+Consumables with a credit need a ledger; keep it in memory in tests so every test starts from
+zero:
+
+```swift
+let store = Store(
+    catalog: [.consumable("coins.100", credits: 100, to: "coins")],
+    client: client,
+    ledger: ConsumableLedger(fileURL: nil)
+)
+```
+
+PaymentKit's own tests replay random histories of purchases, repeats, refunds, upgrades and
+renewals and check that the coins and access always equal what was paid for and not refunded.
 
 ### StoreKit testing in Xcode
 
@@ -61,6 +80,8 @@ Two things to know about StoreKit testing in Xcode:
 
 - `clearTransactions()` takes effect after a moment; wait until `Transaction.currentEntitlements`
   is empty before the next test starts.
+- `finish()` takes effect after a moment too. Buying the same consumable again before that
+  returns the earlier transaction; the ledger credits it once.
 - Prices from the configuration file are read with the device's region settings, so in a region
   that writes decimals with a comma, `4.99` becomes `4`. Run the simulator in a region that uses
   a period.

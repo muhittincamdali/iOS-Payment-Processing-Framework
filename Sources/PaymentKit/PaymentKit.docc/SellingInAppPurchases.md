@@ -18,13 +18,8 @@ struct ShopApp: App {
         .autoRenewable("pro.monthly", unlocks: "pro"),
         .autoRenewable("pro.yearly", unlocks: "pro"),
         .nonConsumable("pro.lifetime", unlocks: "pro"),
-        .consumable("coins.100")
-    ]) { transaction in
-        // Runs for every new verified transaction, before StoreKit finishes it.
-        if transaction.productID == "coins.100" {
-            try await Wallet.shared.add(100 * transaction.purchasedQuantity, for: transaction.id)
-        }
-    }
+        .consumable("coins.100", credits: 100, to: "coins")
+    ])
 
     var body: some Scene {
         WindowGroup {
@@ -46,18 +41,55 @@ StoreKit sends, or from the unfinished transactions at launch, takes the same pa
 
 1. A transaction StoreKit cannot verify is never delivered or finished. ``Store/lastError`` is
    set to ``StoreError/verificationFailed(productID:reason:)``.
-2. A verified transaction goes to your `deliver` closure. Credit coins there, or send
-   ``StoreTransaction/signedTransaction`` to your server.
-3. Only after `deliver` returns is the transaction finished. If `deliver` throws, the
-   transaction stays unfinished and StoreKit sends it again on the next ``Store/start()``.
-4. ``Store/entitlements`` is recomputed from StoreKit's current entitlements.
+2. A verified transaction goes to your `deliver` closure, if you passed one, as a
+   ``TransactionChange``: ``TransactionChange/granted(_:)`` for a purchase, renewal or approval,
+   ``TransactionChange/revoked(_:)`` for a refund. Send ``StoreTransaction/signedTransaction`` to
+   your server there.
+3. A consumable defined with a credit is credited to the ``ConsumableLedger``, or taken back
+   for a refund.
+4. Only after both succeed is the transaction finished. If either throws, the transaction stays
+   unfinished and StoreKit sends it again on the next ``Store/start()``.
+5. ``Store/entitlements`` is recomputed from StoreKit's current entitlements.
 
-Within one launch, a transaction is delivered once even if it arrives both as unfinished and as
-an update. A refund of a delivered transaction is delivered again, with
-``StoreTransaction/revocationDate`` set, so you can take back consumables.
+### Refunds, repeats and restarts
 
-Because a crash can happen between `deliver` and finishing, make delivery idempotent: remember
-the identifiers of credited transactions, as the example app's wallet does.
+Access is never added up: ``Store/entitlements`` is computed again from the current verified
+transactions after every change, so a refunded, revoked, expired or upgraded transaction stops
+granting at once. When two refreshes overlap, the one that started last wins.
+
+Coins are different, because they are counted. The ledger credits each transaction once,
+however often StoreKit sends it, and saves the balance together with the list of handled
+transactions in one atomic write. If the app stops after the credit and before `finish()`,
+StoreKit sends the transaction again on the next launch and the ledger credits nothing.
+
+A refund takes the credit back once, even if the coins were spent; the balance can then be
+below zero, and ``Store/spend(_:of:)`` refuses until it is positive again. Decide what else that
+means in your app.
+
+Your `deliver` closure runs at least once per transaction, so whatever it does must accept
+repeats; the example receipt server keys everything on the transaction identifier.
+
+### Spend coins
+
+```swift
+Text("\(store.balance(of: "coins")) coins")
+
+Button("Unlock the level for 30 coins") {
+    Task {
+        do {
+            try await store.spend(30, of: "coins")
+        } catch .insufficientBalance {
+            showCoinStore = true
+        } catch {
+            message = error.localizedDescription
+        }
+    }
+}
+```
+
+The ledger lives on the device. For anything of value, keep the balance on your server, which
+receives App Store Server Notifications for refunds even when the app is not running; see
+<doc:VerifyingPurchasesOnYourServer>.
 
 ### Check access
 
