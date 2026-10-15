@@ -6,10 +6,12 @@ struct PaymentLabApp: App {
     @State private var model: LabModel
 
     init() {
-        // UI tests start from an empty wallet and a new account each time.
-        let arguments = ProcessInfo.processInfo.arguments
-        let defaults = arguments.contains("-resetState") ? Self.freshDefaults() : .standard
-        _model = State(initialValue: LabModel(defaults: defaults))
+        // UI tests start with no coins and a new account each time.
+        let reset = ProcessInfo.processInfo.arguments.contains("-resetState")
+        _model = State(initialValue: LabModel(
+            ledger: reset ? ConsumableLedger(fileURL: nil) : .standard,
+            defaults: reset ? Self.freshDefaults() : .standard
+        ))
     }
 
     var body: some Scene {

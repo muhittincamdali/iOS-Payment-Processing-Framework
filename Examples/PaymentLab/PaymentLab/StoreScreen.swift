@@ -12,7 +12,7 @@ struct StoreScreen: View {
         NavigationStack {
             List {
                 Section {
-                    AccessCard(entitlement: store.entitlements.first { $0.name == "pro" }, coins: model.wallet.balance)
+                    AccessCard(entitlement: store.entitlements.first { $0.name == "pro" }, coins: store.balance(of: "coins"))
                         .listRowInsets(EdgeInsets())
                 }
 
@@ -87,7 +87,7 @@ struct StoreScreen: View {
 
 private struct AccessCard: View {
     let entitlement: Entitlement?
-    let coins: Int
+    let coins: Int64
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {

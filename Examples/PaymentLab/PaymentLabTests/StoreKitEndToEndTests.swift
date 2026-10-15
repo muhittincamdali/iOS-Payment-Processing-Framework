@@ -35,7 +35,7 @@ struct StoreKitEndToEndTests {
     private func makeModel(server: ReceiptServerClient? = nil) -> LabModel {
         let name = "PaymentLabTests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: name) ?? .standard
-        return LabModel(defaults: defaults, server: server)
+        return LabModel(ledger: ConsumableLedger(fileURL: nil), defaults: defaults, server: server)
     }
 
     private func started(_ model: LabModel) async throws -> Store {
@@ -80,14 +80,19 @@ struct StoreKitEndToEndTests {
         store.stop()
     }
 
-    @Test("coins are credited with the purchased quantity")
+    @Test("coins are credited with the purchased quantity and can be spent")
     func coins() async throws {
         let model = makeModel()
         let store = try await started(model)
         let coins = try #require(store.product(withID: "coins.100"))
         try await store.purchase(coins, options: model.purchaseOptions(quantity: 2))
-        #expect(model.wallet.balance == 200)
+        #expect(store.balance(of: "coins") == 200)
         #expect(store.entitlements.isEmpty)
+        try await store.spend(150, of: "coins")
+        #expect(store.balance(of: "coins") == 50)
+        await #expect(throws: ConsumableLedger.Failure.insufficientBalance(account: "coins", balance: 50, requested: 51)) {
+            try await store.spend(51, of: "coins")
+        }
         store.stop()
     }
 

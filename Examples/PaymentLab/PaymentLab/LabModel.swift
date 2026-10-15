@@ -8,36 +8,10 @@ enum Catalog {
         .autoRenewable("pro.monthly", unlocks: "pro"),
         .autoRenewable("pro.yearly", unlocks: "pro"),
         .nonConsumable("pro.lifetime", unlocks: "pro"),
-        .consumable("coins.100")
+        // PaymentKit's ledger credits 100 coins per pack once per transaction and takes them
+        // back on a refund.
+        .consumable("coins.100", credits: 100, to: "coins")
     ]
-
-    static let coinsPerPack = 100
-}
-
-/// The coins bought with consumables. Each transaction is credited once, even if StoreKit
-/// delivers it again after a crash between delivery and `finish()`.
-@MainActor
-@Observable
-final class Wallet {
-    private(set) var balance: Int
-    @ObservationIgnored private var credited: [UInt64]
-    @ObservationIgnored private let defaults: UserDefaults
-
-    init(defaults: UserDefaults = .standard) {
-        self.defaults = defaults
-        balance = defaults.integer(forKey: "wallet.balance")
-        credited = (defaults.array(forKey: "wallet.credited") as? [NSNumber])?.map(\.uint64Value) ?? []
-    }
-
-    func credit(_ transaction: StoreTransaction) {
-        guard transaction.productID == "coins.100", !credited.contains(transaction.id) else { return }
-        let coins = Catalog.coinsPerPack * transaction.purchasedQuantity
-        balance += transaction.revocationDate == nil ? coins : 0
-        credited.append(transaction.id)
-        credited = Array(credited.suffix(200)) // The last 200 transactions are enough to spot a repeat.
-        defaults.set(balance, forKey: "wallet.balance")
-        defaults.set(credited.map(NSNumber.init(value:)), forKey: "wallet.credited")
-    }
 }
 
 /// Sends transactions to Examples/ReceiptServer, which verifies them with Apple's App Store
@@ -104,17 +78,19 @@ final class ServerStatus {
 @Observable
 final class LabModel {
     let store: Store
-    let wallet: Wallet
     let server: ReceiptServerClient?
     let serverStatus: ServerStatus
     /// Ties purchases to this installation's account on the server.
     let appAccountToken: UUID
 
-    init(client: (any StoreClient)? = nil, defaults: UserDefaults = .standard, server: ReceiptServerClient? = .fromEnvironment()) {
-        let wallet = Wallet(defaults: defaults)
+    init(
+        client: (any StoreClient)? = nil,
+        ledger: ConsumableLedger = .standard,
+        defaults: UserDefaults = .standard,
+        server: ReceiptServerClient? = .fromEnvironment()
+    ) {
         let status = ServerStatus()
         self.serverStatus = status
-        self.wallet = wallet
         self.server = server
         if let saved = defaults.string(forKey: "account.token").flatMap(UUID.init(uuidString:)) {
             appAccountToken = saved
@@ -123,20 +99,15 @@ final class LabModel {
             defaults.set(appAccountToken.uuidString, forKey: "account.token")
         }
 
-        // Delivery runs before StoreKit finishes the transaction. If the server is unreachable
-        // it throws, and the purchase is delivered again on the next launch.
-        let deliver: Store.Delivery = { transaction in
-            if let server {
-                let answer = try await server.verify(transaction)
-                await status.record(answer)
-            }
-            await wallet.credit(transaction)
+        // Delivery runs before StoreKit finishes the transaction, for purchases and refunds
+        // alike. If the server is unreachable it throws, nothing is credited, and the
+        // transaction comes back on the next launch. The server ignores repeats.
+        let deliver: Store.Delivery = { change in
+            guard let server else { return }
+            let answer = try await server.verify(change.transaction)
+            await status.record(answer)
         }
-        store = if let client {
-            Store(catalog: Catalog.products, client: client, deliver: deliver)
-        } else {
-            Store(catalog: Catalog.products, deliver: deliver)
-        }
+        store = Store(catalog: Catalog.products, client: client ?? AppStoreClient(), ledger: ledger, deliver: deliver)
     }
 
     func purchaseOptions(quantity: Int = 1) -> PurchaseOptions {
