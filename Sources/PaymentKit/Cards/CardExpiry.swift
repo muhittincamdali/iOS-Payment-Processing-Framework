@@ -3,7 +3,9 @@ import Foundation
 /// The month and year printed on a card.
 ///
 /// A card is valid through the last day of its expiry month, so `09/27` can be charged until
-/// the end of September 2027 in the calendar you check with.
+/// the end of September 2027. The month and year on a card are Gregorian, so the checks always
+/// use the Gregorian calendar and take only the time zone from the calendar you pass; a device
+/// set to the Japanese, Buddhist or Islamic calendar gets the same answer.
 ///
 /// ```swift
 /// let expiry = try CardExpiry(parsing: "09/27")
@@ -63,13 +65,19 @@ public struct CardExpiry: Hashable, Sendable, Codable, CustomStringConvertible {
     }
 
     /// The first moment after the card stops being valid: the start of the following month.
+    ///
+    /// - Parameter calendar: Only its time zone is used; the date is Gregorian.
     public func endDate(in calendar: Calendar = .current) -> Date? {
         let nextMonth = month == 12 ? DateComponents(year: year + 1, month: 1, day: 1)
                                     : DateComponents(year: year, month: month + 1, day: 1)
-        return calendar.date(from: nextMonth)
+        return Self.gregorian(in: calendar.timeZone).date(from: nextMonth)
     }
 
     /// Whether the card has expired at `date`.
+    ///
+    /// - Parameters:
+    ///   - date: The moment to check, now by default.
+    ///   - calendar: Only its time zone is used; the date is Gregorian.
     public func isExpired(at date: Date = .now, calendar: Calendar = .current) -> Bool {
         guard let end = endDate(in: calendar) else { return true }
         return date >= end
@@ -77,11 +85,22 @@ public struct CardExpiry: Hashable, Sendable, Codable, CustomStringConvertible {
 
     /// Checks that the card has not expired and that the year is plausible.
     ///
+    /// - Parameters:
+    ///   - date: The moment to check, now by default.
+    ///   - calendar: Only its time zone is used; the date is Gregorian.
     /// - Throws: ``CardValidationError/expired`` or ``CardValidationError/expiryTooFarAhead``.
     public func validate(at date: Date = .now, calendar: Calendar = .current) throws(CardValidationError) {
         guard !isExpired(at: date, calendar: calendar) else { throw .expired }
-        let currentYear = calendar.component(.year, from: date)
+        let currentYear = Self.gregorian(in: calendar.timeZone).component(.year, from: date)
         guard year <= currentYear + Self.maximumYearsAhead else { throw .expiryTooFarAhead }
+    }
+
+    // A card's 09/27 is Gregorian: read as a Buddhist year it ended in 1484 and as a year of the
+    // current Japanese era it is centuries ahead, so the caller's calendar lends only its time zone.
+    private static func gregorian(in timeZone: TimeZone) -> Calendar {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = timeZone
+        return calendar
     }
 
     /// The expiry as printed on the card, `MM/YY`.

@@ -142,6 +142,33 @@ struct CardExpiryTests {
         #expect(december.isExpired(at: date("2031-01-01T00:00:00Z"), calendar: calendar))
     }
 
+    @Test("the expiry is Gregorian whatever calendar is passed", arguments: [
+        Calendar.Identifier.gregorian, .japanese, .buddhist, .islamicUmmAlQura, .persian, .hebrew
+    ])
+    func nonGregorianCalendars(identifier: Calendar.Identifier) throws {
+        var calendar = Calendar(identifier: identifier)
+        calendar.timeZone = TimeZone(identifier: "UTC")!
+        let now = date("2026-10-15T12:00:00Z")
+        #expect(throws: Never.self) { try CardExpiry(parsing: "12/30").validate(at: now, calendar: calendar) }
+        #expect(throws: Never.self) { try CardExpiry(parsing: "10/26").validate(at: now, calendar: calendar) }
+        #expect(throws: CardValidationError.expired) { try CardExpiry(parsing: "09/26").validate(at: now, calendar: calendar) }
+        #expect(throws: CardValidationError.expiryTooFarAhead) { try CardExpiry(month: 1, year: 2047).validate(at: now, calendar: calendar) }
+        #expect(try CardExpiry(parsing: "02/28").endDate(in: calendar) == date("2028-03-01T00:00:00Z"))
+        let form = CardForm(number: "4242 4242 4242 4242", expiry: "12/30", securityCode: "123")
+        #expect(throws: Never.self) { try form.validate(at: now, calendar: calendar).get() }
+    }
+
+    @Test("the month ends at midnight in the time zone of the calendar passed")
+    func timeZoneOfCalendar() throws {
+        let expiry = try CardExpiry(month: 9, year: 2026)
+        var tokyo = Calendar(identifier: .japanese)
+        tokyo.timeZone = TimeZone(identifier: "Asia/Tokyo")!
+        // 2026-10-01 00:30 in Tokyo is still September 30 in UTC.
+        let instant = date("2026-09-30T15:30:00Z")
+        #expect(expiry.isExpired(at: instant, calendar: tokyo))
+        #expect(!expiry.isExpired(at: instant, calendar: Self.utc))
+    }
+
     @Test("years far ahead are rejected")
     func tooFarAhead() throws {
         let now = date("2026-10-15T12:00:00Z")

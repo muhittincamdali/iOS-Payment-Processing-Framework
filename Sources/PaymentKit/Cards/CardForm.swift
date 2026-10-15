@@ -36,6 +36,10 @@ public struct CardForm: Hashable, Sendable {
     }
 
     /// Checks every field and returns either the card details or an error for each bad field.
+    ///
+    /// - Parameters:
+    ///   - date: The moment to check the expiry date against, now by default.
+    ///   - calendar: Only its time zone is used; expiry dates are always Gregorian.
     public func validate(at date: Date = .now, calendar: Calendar = .current) -> Result<CardDetails, CardFormErrors> {
         var errors = CardFormErrors()
         var cardNumber: CardNumber?

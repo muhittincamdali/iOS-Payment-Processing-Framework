@@ -39,8 +39,9 @@ error per bad field, so every field can show its own message.
   the lengths that brand issues and the Luhn check digit. UnionPay numbers are not
   Luhn-checked, because some have no check digit.
 - ``CardExpiry`` parses `MM/YY`, `M/YY`, `MMYY` and `MM/YYYY`. A card is valid through the
-  last moment of its month in the calendar you pass, and years more than
-  ``CardExpiry/maximumYearsAhead`` years ahead are rejected as typos.
+  last moment of its month in the Gregorian calendar, whatever calendar the device uses, in the
+  time zone of the calendar you pass. Years more than ``CardExpiry/maximumYearsAhead`` years
+  ahead are rejected as typos.
 - ``CardSecurityCode`` has 4 digits for American Express and 3 for the other brands.
 
 ### Format while typing
