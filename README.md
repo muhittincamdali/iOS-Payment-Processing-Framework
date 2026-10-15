@@ -50,7 +50,7 @@ Apple's App Store Server Library. The package has no dependencies outside Apple'
   async/await.
 - **Card details that do not leak** — `CardNumber`, `CardSecurityCode` and `CardForm` validate
   input (brand, length, Luhn, expiry) and print as `•••• 4242` in logs, `dump` and the debugger.
-- **Tested end to end** — 116 Swift Testing tests on macOS and an iPhone simulator, 7 StoreKit
+- **Tested end to end** — 122 Swift Testing tests on macOS and an iPhone simulator, 7 StoreKit
   tests and 4 UI tests in the example app (real StoreKit through Xcode, the real Apple Pay
   sheet), and 25 tests for the receipt server.
 

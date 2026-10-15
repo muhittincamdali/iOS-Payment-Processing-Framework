@@ -1,4 +1,4 @@
-<!-- i18n-source: README.md@ee5402416cef39a81204cb1b02b618085f3026f6 status=reviewed -->
+<!-- i18n-source: README.md@fa386fd834f424aafaa48856aa687593d50f4d4e status=reviewed -->
 <!-- brand:start -->
 
 <p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/muhittincamdali/iOS-Payment-Processing-Framework/master/.github/brand/banner-dark.svg"><source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/muhittincamdali/iOS-Payment-Processing-Framework/master/.github/brand/banner-light.svg"><img src="https://raw.githubusercontent.com/muhittincamdali/iOS-Payment-Processing-Framework/master/.github/brand/banner-light.svg" alt="PaymentKit: Sell in-app purchases with StoreKit 2, take Apple Pay and keep money exact on Apple platforms."></picture></p>
@@ -35,7 +35,7 @@ PaymentKit est un paquet Swift pour le code de paiement des apps sur les platefo
 - **Des montants exacts** — `Money` stocke les unités mineures d’une devise ISO 4217 ; trop de décimales, `NaN`, un dépassement ou des devises mélangées lèvent une erreur au lieu d’arrondir ou de planter, et les répartitions ne perdent jamais un centime.
 - **Des requêtes Apple Pay vérifiées** — `ApplePayRequest` valide le marchand, la devise, les libellés et les totaux avant que PassKit ne les voie, et `ApplePayController` signale le paiement avec async/await.
 - **Des données de carte qui ne fuient pas** — `CardNumber`, `CardSecurityCode` et `CardForm` valident la saisie (marque, longueur, Luhn, expiration) et s’affichent sous la forme `•••• 4242` dans les journaux, avec `dump` et dans le débogueur.
-- **Testé de bout en bout** — 116 tests Swift Testing sur macOS et sur un simulateur d’iPhone, 7 tests StoreKit et 4 tests d’interface dans l’app d’exemple (le vrai StoreKit via Xcode, la vraie feuille Apple Pay) et 25 tests pour le serveur de reçus.
+- **Testé de bout en bout** — 122 tests Swift Testing sur macOS et sur un simulateur d’iPhone, 7 tests StoreKit et 4 tests d’interface dans l’app d’exemple (le vrai StoreKit via Xcode, la vraie feuille Apple Pay) et 25 tests pour le serveur de reçus.
 
 ## Démarrage rapide
 

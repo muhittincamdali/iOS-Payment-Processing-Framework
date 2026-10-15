@@ -32,11 +32,13 @@ results; they are removed (see "Removed").
   renewals, refunds, upgrades, Family Sharing, repeated deliveries, purchases on other devices and
   unverified updates.
 - `Money` and `Currency`: exact minor units with ISO 4217 digits, strict and locale-aware
-  parsing, rounding rules, arithmetic that checks currencies and range, allocation by ratios
-  without losing a minor unit, formatting and validating `Codable`.
+  parsing that rejects misplaced grouping separators and digits `Decimal` would round, rounding
+  rules, arithmetic that checks currencies and range, allocation by ratios without losing a
+  minor unit, formatting and validating `Codable`.
 - `CardNumber`, `CardBrand`, `CardExpiry`, `CardSecurityCode`, `CardForm`, `CardFormErrors` and
-  `CardDetails`: brand detection, lengths, Luhn check, expiry through the end of the month,
-  formatting while typing, and redaction in every text form.
+  `CardDetails`: brand detection, lengths, Luhn check, expiry through the end of the month in the
+  Gregorian calendar whatever calendar the device uses, formatting while typing, and redaction in
+  every text form.
 - `ApplePayRequest` with `ApplePaySummaryItem`, `ApplePayShippingMethod`, `ApplePayNetwork`,
   `ApplePayCapabilities` and `ApplePayContactField`, validated before it becomes a
   `PKPaymentRequest`; `ApplePayController`, which shows the payment sheet and returns
@@ -47,7 +49,7 @@ results; they are removed (see "Removed").
   transactions and App Store Server Notifications with Apple's App Store Server Library.
 - A DocC catalog with seven articles, published to GitHub Pages.
 - `scripts/capture-screenshots.sh`, which produces the README screenshots from the UI tests.
-- 116 Swift Testing tests, run on macOS and an iPhone simulator, including seeded random
+- 122 Swift Testing tests, run on macOS and an iPhone simulator, including seeded random
   histories of purchases, repeats, refunds, upgrades and renewals.
 
 ### Changed
