@@ -99,6 +99,13 @@ struct EntitlementResolverTests {
         #expect(resolver.entitlements(from: [transaction(1, "pro", .nonConsumable)], at: now).map(\.name) == ["a"])
     }
 
+    @Test("transaction quantities stay within StoreKit's limit", arguments: [(0, 1), (-7, 1), (3, 3), (10, 10), (11, 10), (Int.max, 10)])
+    func quantities(input: Int, stored: Int) {
+        let transaction = StoreTransaction(id: 1, productID: "coins.100", productKind: .consumable, purchaseDate: now, purchasedQuantity: input)
+        #expect(transaction.purchasedQuantity == stored)
+        #expect(100 * transaction.purchasedQuantity <= 1_000)
+    }
+
     @Test("subscription periods are clamped, also when decoded")
     func periods() throws {
         #expect(SubscriptionPeriod(0, .day).value == 1)

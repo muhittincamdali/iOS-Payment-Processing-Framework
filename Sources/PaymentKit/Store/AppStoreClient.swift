@@ -21,6 +21,9 @@ public final class AppStoreClient: StoreClient {
     }
 
     public func purchase(_ productID: String, options: PurchaseOptions) async throws -> PurchaseResult {
+        guard (1...PurchaseOptions.maximumQuantity).contains(options.quantity) else {
+            throw StoreError.invalidQuantity(options.quantity)
+        }
         let product: Product
         if let cached = await cache.product(productID) {
             product = cached

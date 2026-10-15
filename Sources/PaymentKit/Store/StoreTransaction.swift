@@ -17,7 +17,10 @@ public struct StoreTransaction: Identifiable, Hashable, Sendable {
     public let isUpgraded: Bool
     /// Whether a family member bought it and Family Sharing shares it.
     public let isFamilyShared: Bool
-    /// How many units of a consumable were bought.
+    /// How many units of a consumable were bought, 1 to ``PurchaseOptions/maximumQuantity``.
+    ///
+    /// Values outside StoreKit's limit are clamped, so `coins * purchasedQuantity` cannot
+    /// overflow on a malformed transaction.
     public let purchasedQuantity: Int
     /// `"Production"`, `"Sandbox"` or `"Xcode"`, as the App Store reports it.
     public let environment: String
@@ -51,7 +54,7 @@ public struct StoreTransaction: Identifiable, Hashable, Sendable {
         self.revocationDate = revocationDate
         self.isUpgraded = isUpgraded
         self.isFamilyShared = isFamilyShared
-        self.purchasedQuantity = purchasedQuantity
+        self.purchasedQuantity = min(max(purchasedQuantity, 1), PurchaseOptions.maximumQuantity)
         self.environment = environment
         self.appAccountToken = appAccountToken
         self.signedTransaction = signedTransaction
