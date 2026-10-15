@@ -1,4 +1,4 @@
-<!-- i18n-source: README.md@557b21218b732640768f41f7ee39df183686f509 status=reviewed -->
+<!-- i18n-source: README.md@ee5402416cef39a81204cb1b02b618085f3026f6 status=reviewed -->
 <!-- brand:start -->
 
 <p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/muhittincamdali/iOS-Payment-Processing-Framework/master/.github/brand/banner-dark.svg"><source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/muhittincamdali/iOS-Payment-Processing-Framework/master/.github/brand/banner-light.svg"><img src="https://raw.githubusercontent.com/muhittincamdali/iOS-Payment-Processing-Framework/master/.github/brand/banner-light.svg" alt="PaymentKit: Sell in-app purchases with StoreKit 2, take Apple Pay and keep money exact on Apple platforms."></picture></p>
@@ -178,7 +178,7 @@ Il vérifie la chaîne jusqu’à Apple Root CA - G3, l’identifiant du bundle 
 ### Montants
 
 ```swift
-func moneySamples() throws {
+func moneySamples() throws -> (total: Money, shares: [Money]) {
     let price = try Money("19.99", .usd)
     let tax = try price.multiplied(by: Decimal(8) / 100) // 1.60, rounded half to even
     let total = try price.adding(tax)                    // 21.59 USD
@@ -194,6 +194,7 @@ func moneySamples() throws {
     } catch MoneyError.tooManyFractionDigits {
         print("US dollars have two decimals") // never rounded silently
     }
+    return (total, shares)
 }
 ```
 

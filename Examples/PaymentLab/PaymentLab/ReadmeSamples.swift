@@ -66,7 +66,7 @@ func buy(_ product: StoreProduct, in store: Store, account: UUID) async -> Strin
 
 // MARK: Money
 
-func moneySamples() throws {
+func moneySamples() throws -> (total: Money, shares: [Money]) {
     let price = try Money("19.99", .usd)
     let tax = try price.multiplied(by: Decimal(8) / 100) // 1.60, rounded half to even
     let total = try price.adding(tax)                    // 21.59 USD
@@ -82,6 +82,7 @@ func moneySamples() throws {
     } catch MoneyError.tooManyFractionDigits {
         print("US dollars have two decimals") // never rounded silently
     }
+    return (total, shares)
 }
 
 // MARK: Cards

@@ -6,9 +6,16 @@ import Testing
 /// so the code people copy does what the README says.
 @Suite("README samples")
 struct ReadmeSampleTests {
-    @Test("the money sample runs without throwing")
+    @Test("the money sample gives the amounts its comments show")
     func money() throws {
-        try moneySamples()
+        let (total, shares) = try moneySamples()
+        #expect(total == (try Money("21.59", .usd)))
+        #expect(total.minorUnits == 2159)
+        #expect(total.formatted(locale: Locale(identifier: "en_US")) == "$21.59")
+        #expect(try total.subtracting(Money("19.99", .usd)) == Money("1.60", .usd)) // the tax
+        #expect(shares == Array(repeating: try Money("411.50", .eur), count: 3))
+        #expect(shares.map(\.description) == Array(repeating: "411.50 EUR", count: 3))
+        #expect(throws: MoneyError.tooManyFractionDigits(currency: .usd)) { try Money("10.999", .usd) }
     }
 
     @Test("the card sample accepts a valid card and lists every problem of an invalid one")
