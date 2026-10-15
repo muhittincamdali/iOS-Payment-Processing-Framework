@@ -100,6 +100,11 @@ public struct Money: Hashable, Sendable {
 
     /// Whether the amount is below zero, as in a refund.
     public var isNegative: Bool { minorUnits < 0 }
+
+    /// The amount as `NSDecimalNumber`, for PassKit and other Foundation APIs.
+    public var decimalNumber: NSDecimalNumber {
+        NSDecimalNumber(decimal: amount)
+    }
 }
 
 // MARK: - Arithmetic
