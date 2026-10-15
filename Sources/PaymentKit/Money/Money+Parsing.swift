@@ -36,7 +36,10 @@ extension Money {
 
         var normalized = ""
         for character in text.trimmingCharacters(in: .whitespaces) {
-            if String(character) == decimalSeparator {
+            if character == "\u{2212}" {
+                // The minus sign some locales format negative numbers with.
+                normalized.append("-")
+            } else if String(character) == decimalSeparator {
                 normalized.append(".")
             } else if String(character) == groupingSeparator || ignored.contains(character) {
                 continue

@@ -215,7 +215,7 @@ struct MoneyParsingTests {
     @Test("typed text in a locale", arguments: [
         ("1,234.50", "en_US", 123_450), (" 12.5 ", "en_US", 1250), ("1.234,50", "de_DE", 123_450),
         ("1 234,5", "fr_FR", 123_450), ("1\u{202F}234,50", "fr_FR", 123_450), ("1'234.50", "de_CH", 123_450),
-        ("-3,10", "tr_TR", -310)
+        ("-3,10", "tr_TR", -310), ("\u{2212}3,10", "sv_SE", -310)
     ])
     func localized(text: String, locale: String, expected: Int64) throws {
         let money = try Money(parsing: text, currency: .usd, locale: Locale(identifier: locale))
