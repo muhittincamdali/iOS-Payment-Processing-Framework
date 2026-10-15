@@ -20,35 +20,63 @@ extension Money {
     /// Creates an amount from text a person typed in the given locale, such as `"1,234.50"` in
     /// the United States or `"1.234,50"` in Germany.
     ///
-    /// Spaces around the number and the locale's grouping separators are ignored; currency
-    /// symbols, letters, exponents and a second decimal separator are not. An amount with more
-    /// decimals than the currency has throws instead of being rounded, so `"10.999"` dollars is
-    /// reported to the person rather than charged as `11.00`.
+    /// Spaces around the number are ignored. Grouping separators (the locale's own, spaces and
+    /// apostrophes) are accepted only where they group digits: before the decimal separator,
+    /// with three digits after the last one and two or three between the others, as in
+    /// `1,234,567` or the Indian `12,34,567`. So `"12,50"` in the United States or `"0.99"` in
+    /// Germany, where the separator was meant as a decimal point, throws instead of becoming 100
+    /// times larger. Currency symbols, letters, exponents and a second decimal separator throw
+    /// too. An amount with more decimals than the currency has throws instead of being rounded,
+    /// so `"10.999"` dollars is reported to the person rather than charged as `11.00`.
     ///
     /// - Throws: ``MoneyError/invalidText``, ``MoneyError/tooManyFractionDigits(currency:)`` or
     ///   ``MoneyError/outOfRange``.
     public init(parsing text: String, currency: Currency, locale: Locale = .current) throws(MoneyError) {
         guard text.utf8.count <= Self.maximumTextLength else { throw .invalidText }
-        let decimalSeparator = locale.decimalSeparator ?? "."
-        let groupingSeparator = locale.groupingSeparator ?? ","
-        // Grouping characters people type or that formatters produce, besides the locale's own.
-        let ignored: Set<Character> = [" ", "\u{00A0}", "\u{202F}", "'", "’"]
+        let plain = try Self.plainNumber(
+            from: text.trimmingCharacters(in: .whitespaces),
+            decimalSeparator: locale.decimalSeparator ?? ".",
+            groupingSeparator: locale.groupingSeparator ?? ","
+        )
+        let decimal = try Self.strictDecimal(plain)
+        try self.init(decimal, currency)
+    }
 
-        var normalized = ""
-        for character in text.trimmingCharacters(in: .whitespaces) {
-            if character == "\u{2212}" {
-                // The minus sign some locales format negative numbers with.
-                normalized.append("-")
-            } else if String(character) == decimalSeparator {
-                normalized.append(".")
-            } else if String(character) == groupingSeparator || ignored.contains(character) {
-                continue
+    /// Rewrites localized text as `-?digits(.digits)?`, checking where grouping separators are.
+    private static func plainNumber(
+        from text: String,
+        decimalSeparator: String,
+        groupingSeparator: String
+    ) throws(MoneyError) -> String {
+        // Grouping characters people type or that formatters produce, besides the locale's own.
+        let grouping: Set<Character> = [" ", "\u{00A0}", "\u{202F}", "'", "’"]
+        var sign = ""
+        var groups = [""]
+        var fraction: String?
+        for (offset, character) in text.enumerated() {
+            if offset == 0, character == "-" || character == "\u{2212}" {
+                sign = "-" // U+2212 is the minus sign some locales format negative numbers with.
+            } else if String(character) == decimalSeparator, fraction == nil {
+                fraction = ""
+            } else if String(character) == groupingSeparator || grouping.contains(character) {
+                guard fraction == nil else { throw .invalidText }
+                groups.append("")
+            } else if fraction != nil {
+                fraction?.append(character)
             } else {
-                normalized.append(character)
+                groups[groups.count - 1].append(character)
             }
         }
-        let decimal = try Self.strictDecimal(normalized)
-        try self.init(decimal, currency)
+        guard hasDigitGroups(groups) else { throw .invalidText }
+        return sign + groups.joined() + (fraction.map { ".\($0)" } ?? "")
+    }
+
+    // "12,50" in en_US or "0.99" in de_DE is a decimal typed with the wrong separator; reading
+    // the separator as grouping would charge 100 times the amount.
+    private static func hasDigitGroups(_ groups: [String]) -> Bool {
+        guard groups.count > 1 else { return true }
+        guard (1...3).contains(groups[0].count), groups[groups.count - 1].count == 3 else { return false }
+        return groups.dropFirst().dropLast().allSatisfy { (2...3).contains($0.count) }
     }
 
     /// Parses `-?[0-9]+(\.[0-9]+)?` with ASCII digits only.

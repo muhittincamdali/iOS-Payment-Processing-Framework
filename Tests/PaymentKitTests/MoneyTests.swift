@@ -222,6 +222,28 @@ struct MoneyParsingTests {
         #expect(money.minorUnits == expected)
     }
 
+    @Test("grouped amounts in a locale", arguments: [
+        ("1,234,567.89", "en_US", 123_456_789), ("-1,234", "en_US", -123_400), ("12,34,567.50", "en_IN", 123_456_750),
+        ("1.234", "de_DE", 123_400), ("1.234.567,8", "de_DE", 123_456_780), ("1 234 567", "fr_FR", 123_456_700),
+        ("999", "de_DE", 99_900)
+    ])
+    func grouped(text: String, locale: String, expected: Int64) throws {
+        #expect(try Money(parsing: text, currency: .usd, locale: Locale(identifier: locale)).minorUnits == expected)
+    }
+
+    // A decimal typed with the other separator must not become 10 or 100 times larger.
+    @Test("separators that do not group three digits throw", arguments: [
+        ("12,50", "en_US"), ("9,99", "en_US"), ("1,5", "en_US"), ("1234,567", "en_US"), (",5", "en_US"),
+        ("1,", "en_US"), ("1,,234", "en_US"), ("1,234.5,6", "en_US"), ("1,2345", "en_US"), ("12 50", "en_US"),
+        ("0.99", "de_DE"), ("1.5", "de_DE"), ("12.50", "de_DE"), ("1.234.5", "de_DE"), ("1,234.50", "de_DE"),
+        ("1 5", "fr_FR"), ("12'50", "de_CH"), ("1,2,345", "en_IN")
+    ])
+    func misplacedGrouping(text: String, locale: String) {
+        #expect(throws: MoneyError.invalidText, "\(text) in \(locale)") {
+            try Money(parsing: text, currency: .usd, locale: Locale(identifier: locale))
+        }
+    }
+
     @Test("typed text that is not a plain amount throws", arguments: ["$12", "12 USD", "1.2.3", "12abc", "1e5", "", "   "])
     func localizedRejects(text: String) throws {
         #expect(throws: MoneyError.self) { try Money(parsing: text, currency: .usd, locale: Locale(identifier: "en_US")) }

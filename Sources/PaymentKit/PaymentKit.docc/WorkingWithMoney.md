@@ -42,7 +42,9 @@ crashing:
   the 53-bit integers of JavaScript and JSON parsers;
 - adding amounts in different currencies;
 - text that is not a plain number: symbols, letters, exponents, a second decimal separator, or
-  more than ``Money/maximumTextLength`` characters.
+  more than ``Money/maximumTextLength`` characters;
+- typed text with a grouping separator that does not group digits, such as `12,50` in the
+  United States or `0.99` in Germany, which would otherwise become 100 times the amount.
 
 ### Split without losing a cent
 
