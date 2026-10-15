@@ -8,21 +8,47 @@ import Foundation
 ///     .autoRenewable("pro.yearly", unlocks: "pro"),
 ///     .nonConsumable("pro.lifetime", unlocks: "pro"),
 ///     .nonRenewing("season.pass", unlocks: "season", lasts: SubscriptionPeriod(3, .month)),
-///     .consumable("coins.100")
+///     .consumable("coins.100", credits: 100, to: "coins")
 /// ]
 /// ```
 public struct ProductDefinition: Hashable, Sendable {
+    /// What one unit of a consumable adds to a balance of ``ConsumableLedger``.
+    public struct Credit: Hashable, Sendable {
+        /// The balance name, such as `"coins"`.
+        public let account: String
+        /// How much one unit adds; a purchase of several units adds this times the quantity.
+        public let amount: Int64
+    }
+
     /// The product identifier from App Store Connect.
     public let id: String
     /// The entitlement the product grants, or `nil` for consumables.
     public let entitlement: String?
     /// How long a non-renewing subscription lasts after its purchase date.
     public let duration: SubscriptionPeriod?
+    /// What a consumable adds to a balance, or `nil` when your `deliver` closure handles it.
+    public let credit: Credit?
 
-    /// A consumable, such as coins; it unlocks nothing by itself. Deliver it in the
-    /// `deliver` closure of ``Store``.
+    init(id: String, entitlement: String?, duration: SubscriptionPeriod?, credit: Credit? = nil) {
+        self.id = id
+        self.entitlement = entitlement
+        self.duration = duration
+        self.credit = credit
+    }
+
+    /// A consumable that your `deliver` closure of ``Store`` hands out; it unlocks nothing by
+    /// itself.
     public static func consumable(_ id: String) -> ProductDefinition {
         ProductDefinition(id: id, entitlement: nil, duration: nil)
+    }
+
+    /// A consumable that adds `amount` per unit to the `account` balance of the store's
+    /// ``ConsumableLedger``, exactly once per transaction, and takes it back on a refund.
+    ///
+    /// An `amount` of zero or less, or an empty account name, is reported as a delivery error
+    /// when the product is bought, and the transaction stays unfinished.
+    public static func consumable(_ id: String, credits amount: Int64, to account: String) -> ProductDefinition {
+        ProductDefinition(id: id, entitlement: nil, duration: nil, credit: Credit(account: account, amount: amount))
     }
 
     /// A one-time purchase that unlocks `entitlement` for good.

@@ -32,19 +32,17 @@ struct ContentView: View {
 // MARK: Store
 
 @MainActor
-func makeStore(wallet: CoinWallet, server: URL) -> Store {
+func makeStore(server: URL) -> Store {
     Store(catalog: [
         .autoRenewable("pro.monthly", unlocks: "pro"),
         .autoRenewable("pro.yearly", unlocks: "pro"),
         .nonConsumable("pro.lifetime", unlocks: "pro"),
-        .consumable("coins.100")
-    ]) { transaction in
-        // Runs for every new verified transaction, before StoreKit finishes it.
-        // Throwing keeps it unfinished, and StoreKit delivers it again on the next launch.
-        try await sendToServer(transaction.signedTransaction, server: server)
-        if transaction.productID == "coins.100" {
-            await wallet.add(100 * transaction.purchasedQuantity, for: transaction.id)
-        }
+        .consumable("coins.100", credits: 100, to: "coins") // store.balance(of: "coins")
+    ]) { change in
+        // Runs for each new verified transaction (.granted) and each refund (.revoked) before
+        // StoreKit finishes it. Throwing keeps it unfinished and StoreKit sends it again on the
+        // next launch, so the server must accept repeats of the same transaction.
+        try await sendToServer(change.transaction.signedTransaction, server: server)
     }
 }
 
@@ -170,19 +168,22 @@ func refundRemovesPro() async throws -> Bool {
     return unlocked && !store.hasEntitlement("pro")    // access is gone
 }
 
-// MARK: Helpers used by the samples
-
-/// Coins credited once per transaction.
 @MainActor
-final class CoinWallet {
-    private(set) var balance = 0
-    private var credited: Set<UInt64> = []
+func buyAndSpendCoins() async throws -> Int64 {
+    let client = TestStoreClient(products: [.preview(id: "coins.100", kind: .consumable)])
+    let store = Store(
+        catalog: [.consumable("coins.100", credits: 100, to: "coins")],
+        client: client,
+        ledger: ConsumableLedger(fileURL: nil) // in memory, for tests and previews
+    )
+    await store.start()
 
-    func add(_ coins: Int, for transactionID: UInt64) {
-        guard credited.insert(transactionID).inserted else { return }
-        balance += coins
-    }
+    try await store.purchase(store.products[0], options: PurchaseOptions(quantity: 2))
+    try await store.spend(50, of: "coins")
+    return store.balance(of: "coins")                  // 150
 }
+
+// MARK: Helpers used by the samples
 
 func sendToServer(_ signedTransaction: String, server: URL) async throws {
     var request = URLRequest(url: server.appending(path: "v1/transactions"))

@@ -11,27 +11,33 @@ import Observation
 /// @MainActor let store = Store(catalog: [
 ///     .autoRenewable("pro.monthly", unlocks: "pro"),
 ///     .nonConsumable("pro.lifetime", unlocks: "pro"),
-///     .consumable("coins.100")
-/// ]) { transaction in
-///     // Runs before the transaction is finished; throw to have it delivered again later.
-///     if transaction.productID == "coins.100" { try await Wallet.shared.add(100 * transaction.purchasedQuantity) }
-/// }
+///     .consumable("coins.100", credits: 100, to: "coins")
+/// ])
 ///
 /// // In a view:
 /// if store.hasEntitlement("pro") { ProFeatures() }
+/// Text("\(store.balance(of: "coins")) coins")
 /// ```
 ///
 /// Every transaction goes through the same steps: transactions StoreKit cannot verify are
-/// rejected and never finished; verified ones are passed to `deliver`, finished only after
-/// `deliver` returns, and then ``entitlements`` is recomputed. A transaction is delivered at
-/// most once per launch, and a refund of it is delivered again with its `revocationDate` set.
+/// rejected and never finished; verified ones are passed to `deliver` as a
+/// ``TransactionChange``, credited to the ``ConsumableLedger`` when they are consumables with a
+/// credit, finished only after both succeed, and then ``entitlements`` is recomputed.
+///
+/// Access is never accumulated: ``entitlements`` is always computed again from StoreKit's
+/// current verified transactions, so a refund, a revocation, an expiry or an upgrade removes it.
+/// A refund reaches `deliver` as ``TransactionChange/revoked(_:)``, never as a new grant.
 @MainActor
 @Observable
 public final class Store {
     /// A closure that delivers what a transaction paid for: coins for a consumable, a call to
     /// your server with ``StoreTransaction/signedTransaction``. Throwing leaves the transaction
     /// unfinished, so the App Store sends it again on the next ``start()``.
-    public typealias Delivery = @Sendable (StoreTransaction) async throws -> Void
+    ///
+    /// It runs at least once per transaction: StoreKit sends a transaction again when the app
+    /// stops between `deliver` and `finish()`, so make it idempotent by transaction identifier
+    /// (the receipt server in Examples does).
+    public typealias Delivery = @Sendable (TransactionChange) async throws -> Void
 
     /// What happened to a purchase.
     public enum PurchaseOutcome: Hashable, Sendable {
@@ -50,10 +56,14 @@ public final class Store {
     public private(set) var entitlements: [Entitlement] = []
     /// The product whose purchase sheet is showing, if any.
     public private(set) var purchasingProductID: String?
+    /// The balances of consumables with a credit, such as `["coins": 300]`.
+    public private(set) var balances: [String: Int64] = [:]
     /// The last error from loading, an update or a delivery, to show in the interface.
     public private(set) var lastError: StoreError?
 
     @ObservationIgnored private let catalog: [ProductDefinition]
+    @ObservationIgnored private let credits: [String: ProductDefinition.Credit]
+    @ObservationIgnored private let ledger: ConsumableLedger
     @ObservationIgnored private let client: any StoreClient
     @ObservationIgnored private let resolver: EntitlementResolver
     @ObservationIgnored private let deliver: Delivery?
@@ -62,21 +72,32 @@ public final class Store {
     @ObservationIgnored private var expiryTask: Task<Void, Never>?
     @ObservationIgnored private var inFlight: Set<TransactionKey> = []
     @ObservationIgnored private var handled = RecentSet<TransactionKey>(capacity: 1_000)
+    /// Counts refreshes, so the result of an older refresh never replaces a newer one.
+    @ObservationIgnored private var refreshGeneration: UInt64 = 0
 
     /// Creates a store that talks to `client`.
     ///
     /// - Parameters:
     ///   - catalog: The products the app sells and what they unlock.
     ///   - client: The App Store, or a ``TestStoreClient`` in tests and previews.
+    ///   - ledger: Where the balances of consumables with a credit are kept. Tests and previews
+    ///     pass `ConsumableLedger(fileURL: nil)`.
     ///   - now: The current time; tests pass a fixed clock.
-    ///   - deliver: Called for each new verified transaction before it is finished.
+    ///   - deliver: Called for each new verified transaction and each refund before it is
+    ///     finished.
     public init(
         catalog: [ProductDefinition],
         client: any StoreClient,
+        ledger: ConsumableLedger = .standard,
         now: @escaping @Sendable () -> Date = { Date() },
         deliver: Delivery? = nil
     ) {
         self.catalog = catalog
+        self.credits = Dictionary(
+            catalog.compactMap { definition in definition.credit.map { (definition.id, $0) } },
+            uniquingKeysWith: { first, _ in first }
+        )
+        self.ledger = ledger
         self.client = client
         self.resolver = EntitlementResolver(catalog: catalog)
         self.now = now
@@ -95,6 +116,9 @@ public final class Store {
             }
         }
         await loadProducts()
+        if !credits.isEmpty {
+            await loadBalances()
+        }
         for event in await client.unfinishedTransactions() {
             await handle(event)
         }
@@ -129,6 +153,20 @@ public final class Store {
     public func hasEntitlement(_ name: String) -> Bool {
         let date = now()
         return entitlements.contains { $0.name == name && ($0.expirationDate.map { $0 > date } ?? true) }
+    }
+
+    /// The balance of a consumable account, such as `"coins"`; 0 when it has none.
+    public func balance(of account: String) -> Int64 {
+        balances[account] ?? 0
+    }
+
+    /// Spends from a consumable balance.
+    ///
+    /// - Throws: ``ConsumableLedger/Failure/insufficientBalance(account:balance:requested:)``
+    ///   when the balance is too low; nothing changes then.
+    public func spend(_ amount: Int64, of account: String) async throws(ConsumableLedger.Failure) {
+        try await ledger.spend(amount, of: account)
+        balances = try await ledger.balances()
     }
 
     /// Shows the purchase sheet, then delivers and finishes the transaction.
@@ -191,10 +229,24 @@ public final class Store {
     }
 
     /// Recomputes ``entitlements`` from the App Store's current entitlements.
+    ///
+    /// When refreshes overlap, the one that started last wins, so a list read before a refund
+    /// cannot replace the list read after it.
     public func refreshEntitlements() async {
+        refreshGeneration &+= 1
+        let generation = refreshGeneration
         let events = await client.currentEntitlements()
+        guard generation == refreshGeneration else { return }
         entitlements = resolver.entitlements(from: events, at: now())
         scheduleExpiryRefresh()
+    }
+
+    private func loadBalances() async {
+        do {
+            balances = try await ledger.balances()
+        } catch {
+            lastError = .ledger(error)
+        }
     }
 
     // MARK: - Transactions
@@ -211,17 +263,41 @@ public final class Store {
         }
     }
 
-    /// Delivers and finishes a verified transaction once, then recomputes the entitlements.
+    /// Delivers, credits and finishes a verified transaction once, then recomputes the
+    /// entitlements.
     private func process(_ transaction: StoreTransaction) async throws {
         let key = TransactionKey(transaction)
-        guard !handled.contains(key), !inFlight.contains(key) else { return }
+        guard !inFlight.contains(key) else { return }
+        guard !handled.contains(key) else {
+            // Delivered already; a repeat can still carry a new flag such as an upgrade.
+            await refreshEntitlements()
+            return
+        }
         inFlight.insert(key)
         defer { inFlight.remove(key) }
 
-        try await deliver?(transaction)
+        let change = TransactionChange(transaction)
+        try await deliver?(change)
+        try await applyCredit(of: change)
         await client.finish(transaction)
         handled.insert(key)
         await refreshEntitlements()
+    }
+
+    /// Credits a consumable purchase to the ledger, or takes a refunded one back.
+    private func applyCredit(of change: TransactionChange) async throws {
+        let transaction = change.transaction
+        guard let credit = credits[transaction.productID] else { return }
+        // purchasedQuantity is at most PurchaseOptions.maximumQuantity, so the conversion is exact.
+        let (amount, overflow) = credit.amount.multipliedReportingOverflow(by: Int64(transaction.purchasedQuantity))
+        guard !overflow else { throw ConsumableLedger.Failure.overflow(account: credit.account) }
+        switch change {
+        case .granted:
+            try await ledger.credit(amount, to: credit.account, for: transaction.id)
+        case .revoked:
+            try await ledger.revoke(amount, from: credit.account, for: transaction.id)
+        }
+        balances = try await ledger.balances()
     }
 
     private func scheduleExpiryRefresh() {
@@ -290,9 +366,12 @@ extension Store {
     ///
     /// - Parameters:
     ///   - catalog: The products the app sells and what they unlock.
-    ///   - deliver: Called for each new verified transaction before it is finished.
+    ///   - deliver: Called for each new verified transaction and each refund before it is
+    ///     finished.
+    ///
+    /// Balances of consumables with a credit are kept in ``ConsumableLedger/standard``.
     public convenience init(catalog: [ProductDefinition], deliver: Delivery? = nil) {
-        self.init(catalog: catalog, client: AppStoreClient(), deliver: deliver)
+        self.init(catalog: catalog, client: AppStoreClient(), ledger: .standard, deliver: deliver)
     }
 }
 #endif

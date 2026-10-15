@@ -26,21 +26,25 @@ final class DeliveryRecorder: @unchecked Sendable {
     }
 
     private let lock = NSLock()
-    private var received: [StoreTransaction] = []
+    private var received: [TransactionChange] = []
     private var failing = false
 
-    var transactions: [StoreTransaction] {
+    var changes: [TransactionChange] {
         lock.withLock { received }
+    }
+
+    var transactions: [StoreTransaction] {
+        changes.map(\.transaction)
     }
 
     func setFailing(_ value: Bool) {
         lock.withLock { failing = value }
     }
 
-    func deliver(_ transaction: StoreTransaction) throws {
+    func deliver(_ change: TransactionChange) throws {
         try lock.withLock {
             if failing { throw Failure() }
-            received.append(transaction)
+            received.append(change)
         }
     }
 }
@@ -70,7 +74,81 @@ enum Fixtures {
         .autoRenewable("pro.monthly", unlocks: "pro"),
         .autoRenewable("pro.yearly", unlocks: "pro"),
         .nonConsumable("pro.lifetime", unlocks: "pro"),
-        .consumable("coins.100"),
+        .consumable("coins.100", credits: 100, to: "coins"),
         .nonRenewing("season.pass", unlocks: "season", lasts: SubscriptionPeriod(3, .month))
     ]
+}
+
+/// A client that passes everything to a ``TestStoreClient`` but can stand in for an app that
+/// stops before `finish()`, or hold one entitlements read until the test releases it.
+actor InterposingClient: StoreClient {
+    let base: TestStoreClient
+    private var finishes = true
+    private var holdNextRead = false
+    private var held: CheckedContinuation<Void, Never>?
+
+    init(_ base: TestStoreClient) {
+        self.base = base
+    }
+
+    /// Makes `finish(_:)` do nothing, as if the app stopped right before it.
+    func stopBeforeFinishing() {
+        finishes = false
+    }
+
+    /// Makes the next `currentEntitlements()` read the transactions now and return them only
+    /// after ``releaseHeldRead()``.
+    func holdNextEntitlementsRead() {
+        holdNextRead = true
+    }
+
+    var isHoldingRead: Bool { held != nil }
+
+    func releaseHeldRead() {
+        held?.resume()
+        held = nil
+    }
+
+    func products(for ids: Set<String>) async throws -> [StoreProduct] { try await base.products(for: ids) }
+    func purchase(_ productID: String, options: PurchaseOptions) async throws -> PurchaseResult { try await base.purchase(productID, options: options) }
+    func unfinishedTransactions() async -> [TransactionEvent] { await base.unfinishedTransactions() }
+    nonisolated func transactionUpdates() -> AsyncStream<TransactionEvent> { base.transactionUpdates() }
+    func sync() async throws { try await base.sync() }
+
+    func finish(_ transaction: StoreTransaction) async {
+        if finishes { await base.finish(transaction) }
+    }
+
+    func currentEntitlements() async -> [TransactionEvent] {
+        let snapshot = await base.currentEntitlements()
+        if holdNextRead {
+            holdNextRead = false
+            await withCheckedContinuation { held = $0 }
+        }
+        return snapshot
+    }
+}
+
+/// A small seeded generator (SplitMix64), so a failing random sequence can be replayed.
+struct SeededGenerator: RandomNumberGenerator {
+    private var state: UInt64
+
+    init(seed: UInt64) {
+        state = seed
+    }
+
+    mutating func next() -> UInt64 {
+        state &+= 0x9E37_79B9_7F4A_7C15
+        var value = state
+        value = (value ^ (value >> 30)) &* 0xBF58_476D_1CE4_E5B9
+        value = (value ^ (value >> 27)) &* 0x94D0_49BB_1331_11EB
+        return value ^ (value >> 31)
+    }
+}
+
+/// A file URL in a new temporary directory, removed by the caller.
+func temporaryLedgerURL() -> URL {
+    FileManager.default.temporaryDirectory
+        .appending(path: "PaymentKitTests-\(UUID().uuidString)", directoryHint: .isDirectory)
+        .appending(path: "ledger.json")
 }

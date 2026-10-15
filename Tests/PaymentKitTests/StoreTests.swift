@@ -17,7 +17,7 @@ struct StoreTests {
     func makeStore(catalog: [ProductDefinition] = Fixtures.catalog) -> Store {
         let clock = clock
         let recorder = recorder
-        return Store(catalog: catalog, client: client, now: { clock.now }) { try recorder.deliver($0) }
+        return Store(catalog: catalog, client: client, ledger: ConsumableLedger(fileURL: nil), now: { clock.now }) { try recorder.deliver($0) }
     }
 
     @Test("start loads the catalog's products in catalog order")
@@ -122,6 +122,8 @@ struct StoreTests {
             try await store.purchase(Fixtures.lifetime)
         }
         #expect(!store.hasEntitlement("pro"))
+        await store.refreshEntitlements()
+        #expect(!store.hasEntitlement("pro"), "StoreKit keeps reporting it as unverified")
         #expect(recorder.transactions.isEmpty)
         #expect(await client.finishedTransactionIDs.isEmpty)
         store.stop()
@@ -172,7 +174,7 @@ struct StoreTests {
         store.stop()
     }
 
-    @Test("a refund removes access and is delivered again with its revocation date")
+    @Test("a refund removes access and reaches deliver as a revocation, never as a grant")
     func refund() async throws {
         let store = makeStore()
         await store.start()
@@ -182,10 +184,10 @@ struct StoreTests {
         }
         #expect(store.hasEntitlement("pro"))
 
-        try await client.refund(purchase.id)
+        let refunded = try await client.refund(purchase.id)
         #expect(await eventually { !store.hasEntitlement("pro") })
-        #expect(recorder.transactions.map(\.id) == [purchase.id, purchase.id])
-        #expect(recorder.transactions.last?.revocationDate != nil)
+        #expect(recorder.changes == [.granted(purchase), .revoked(refunded)])
+        #expect(store.entitlements.isEmpty)
         store.stop()
     }
 

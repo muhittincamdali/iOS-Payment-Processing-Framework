@@ -72,6 +72,8 @@ public enum StoreError: Error, Hashable, Sendable {
     case deliveryFailed(transactionID: UInt64, reason: String)
     /// The App Store or the network failed; holds the system's description.
     case storeKit(String)
+    /// The balances of the store's ``ConsumableLedger`` cannot be read or changed.
+    case ledger(ConsumableLedger.Failure)
 }
 
 extension StoreError: LocalizedError {
@@ -83,6 +85,7 @@ extension StoreError: LocalizedError {
         case .invalidQuantity(let quantity): "\(quantity) is not a quantity this product can be bought in."
         case .deliveryFailed: "The purchase went through but could not be delivered yet. It will be delivered the next time the app starts."
         case .storeKit(let description): description
+        case .ledger(let failure): failure.localizedDescription
         }
     }
 }

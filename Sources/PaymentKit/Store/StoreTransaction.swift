@@ -80,3 +80,27 @@ public struct TransactionEvent: Hashable, Sendable {
 
     public var isVerified: Bool { verification == .verified }
 }
+
+/// What ``Store`` hands to its `deliver` closure: a transaction to grant, or a refund to take
+/// back.
+///
+/// The cases are separate so a refund can never be mistaken for a new purchase: a refunded
+/// transaction arrives again with the same identifier and a ``StoreTransaction/revocationDate``.
+public enum TransactionChange: Hashable, Sendable {
+    /// A new verified purchase, renewal, Ask to Buy approval or purchase on another device.
+    case granted(StoreTransaction)
+    /// The App Store refunded or revoked a transaction (also when Family Sharing stops); take
+    /// back what ``granted(_:)`` gave.
+    case revoked(StoreTransaction)
+
+    /// The transaction, whichever the case.
+    public var transaction: StoreTransaction {
+        switch self {
+        case .granted(let transaction), .revoked(let transaction): transaction
+        }
+    }
+
+    init(_ transaction: StoreTransaction) {
+        self = transaction.revocationDate == nil ? .granted(transaction) : .revoked(transaction)
+    }
+}

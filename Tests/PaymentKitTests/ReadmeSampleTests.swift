@@ -32,12 +32,8 @@ struct ReadmeSampleTests {
     }
 
     @MainActor
-    @Test("the store sample delivers coins once per transaction")
-    func store() async throws {
-        let wallet = CoinWallet()
-        wallet.add(100, for: 1)
-        wallet.add(100, for: 1)
-        wallet.add(200, for: 2)
-        #expect(wallet.balance == 300)
+    @Test("the coins sample credits two packs and spends from them")
+    func coins() async throws {
+        #expect(try await buyAndSpendCoins() == 150)
     }
 }

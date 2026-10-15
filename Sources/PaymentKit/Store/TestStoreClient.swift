@@ -43,6 +43,9 @@ public actor TestStoreClient: StoreClient {
     private var pendingOptions: [String: PurchaseOptions] = [:]
     private var nextID: UInt64 = 1_000
     private var syncError: Failure?
+    /// Transactions whose signature does not verify; StoreKit reports them as unverified
+    /// wherever they appear.
+    private var unverifiedIDs: Set<UInt64> = []
     private nonisolated let updates: AsyncStream<TransactionEvent>
     private nonisolated let continuation: AsyncStream<TransactionEvent>.Continuation
 
@@ -97,7 +100,8 @@ public actor TestStoreClient: StoreClient {
             return .cancelled
         case .failVerification:
             let transaction = makeTransaction(productID, options: options)
-            return .completed(TransactionEvent(transaction: transaction, verification: .unverified(reason: "invalidSignature")))
+            unverifiedIDs.insert(transaction.id)
+            return .completed(event(for: transaction))
         case .fail(let message):
             throw Failure(message: message)
         }
@@ -112,12 +116,12 @@ public actor TestStoreClient: StoreClient {
             if let current = latest[transaction.productID], current.purchaseDate > transaction.purchaseDate { continue }
             latest[transaction.productID] = transaction
         }
-        return latest.values.sorted { $0.id < $1.id }.map { TransactionEvent(transaction: $0, verification: .verified) }
+        return latest.values.sorted { $0.id < $1.id }.map(event(for:))
     }
 
     public func unfinishedTransactions() async -> [TransactionEvent] {
         unfinishedTransactionIDs.compactMap { id in
-            transactions.first { $0.id == id }.map { TransactionEvent(transaction: $0, verification: .verified) }
+            transactions.first { $0.id == id }.map(event(for:))
         }
     }
 
@@ -158,39 +162,73 @@ public actor TestStoreClient: StoreClient {
         return emit(makeTransaction(productID, options: PurchaseOptions(appAccountToken: previous.appAccountToken), originalID: previous.originalID))
     }
 
-    /// Refunds a transaction: it gets a revocation date and arrives again as an update.
+    /// Refunds a transaction: it gets a revocation date and arrives again as an update. Use it
+    /// for a family member's shared purchase too: StoreKit revokes it the same way when Family
+    /// Sharing stops.
     @discardableResult
     public func refund(_ transactionID: UInt64) throws -> StoreTransaction {
+        try replace(transactionID) { $0.revoked(at: now()) }
+    }
+
+    /// Sends a transaction again as an update, as StoreKit can after a restore or when the app
+    /// stopped before finishing it.
+    @discardableResult
+    public func redeliver(_ transactionID: UInt64) throws -> StoreTransaction {
+        guard let transaction = transactions.first(where: { $0.id == transactionID }) else {
+            throw StoreError.productNotFound(String(transactionID))
+        }
+        return emit(transaction)
+    }
+
+    /// Moves the person from the latest transaction of `oldProductID` to a new subscription of
+    /// `newProductID` in the same group: the old transaction is marked upgraded and both arrive
+    /// as updates.
+    @discardableResult
+    public func upgrade(from oldProductID: String, to newProductID: String) throws -> StoreTransaction {
+        guard catalog[newProductID] != nil,
+              let previous = transactions.last(where: { $0.productID == oldProductID && $0.revocationDate == nil })
+        else { throw StoreError.productNotFound(newProductID) }
+        try replace(previous.id) { $0.upgraded() }
+        return emit(makeTransaction(newProductID, options: PurchaseOptions(appAccountToken: previous.appAccountToken), originalID: previous.originalID))
+    }
+
+    /// Records a purchase a family member made and shares through Family Sharing.
+    @discardableResult
+    public func shareFromFamily(_ productID: String) throws -> StoreTransaction {
+        guard catalog[productID] != nil else { throw StoreError.productNotFound(productID) }
+        return emit(makeTransaction(productID, options: PurchaseOptions(), isFamilyShared: true))
+    }
+
+    @discardableResult
+    private func replace(_ transactionID: UInt64, _ change: (StoreTransaction) -> StoreTransaction) throws -> StoreTransaction {
         guard let index = transactions.firstIndex(where: { $0.id == transactionID }) else {
             throw StoreError.productNotFound(String(transactionID))
         }
-        let original = transactions[index]
-        let refunded = StoreTransaction(
-            id: original.id, originalID: original.originalID, productID: original.productID,
-            productKind: original.productKind, purchaseDate: original.purchaseDate,
-            expirationDate: original.expirationDate, revocationDate: now(),
-            isUpgraded: original.isUpgraded, isFamilyShared: original.isFamilyShared,
-            purchasedQuantity: original.purchasedQuantity, environment: original.environment,
-            appAccountToken: original.appAccountToken, signedTransaction: original.signedTransaction
-        )
-        transactions[index] = refunded
-        continuation.yield(TransactionEvent(transaction: refunded, verification: .verified))
-        return refunded
+        let changed = change(transactions[index])
+        transactions[index] = changed
+        continuation.yield(event(for: changed))
+        return changed
     }
 
     /// Sends a transaction update whose signature cannot be verified.
     public func sendUnverifiedUpdate(for productID: String) throws {
         guard catalog[productID] != nil else { throw StoreError.productNotFound(productID) }
         let transaction = makeTransaction(productID, options: PurchaseOptions())
-        continuation.yield(TransactionEvent(transaction: transaction, verification: .unverified(reason: "invalidSignature")))
+        unverifiedIDs.insert(transaction.id)
+        continuation.yield(event(for: transaction))
     }
 
     private func emit(_ transaction: StoreTransaction) -> StoreTransaction {
-        continuation.yield(TransactionEvent(transaction: transaction, verification: .verified))
+        continuation.yield(event(for: transaction))
         return transaction
     }
 
-    private func makeTransaction(_ productID: String, options: PurchaseOptions, originalID: UInt64? = nil) -> StoreTransaction {
+    private func event(for transaction: StoreTransaction) -> TransactionEvent {
+        let verification: TransactionEvent.Verification = unverifiedIDs.contains(transaction.id) ? .unverified(reason: "invalidSignature") : .verified
+        return TransactionEvent(transaction: transaction, verification: verification)
+    }
+
+    private func makeTransaction(_ productID: String, options: PurchaseOptions, originalID: UInt64? = nil, isFamilyShared: Bool = false) -> StoreTransaction {
         let product = catalog[productID]
         let kind = product?.kind ?? .consumable
         let date = now()
@@ -203,6 +241,7 @@ public actor TestStoreClient: StoreClient {
             productKind: kind,
             purchaseDate: date,
             expirationDate: expiration,
+            isFamilyShared: isFamilyShared,
             purchasedQuantity: options.quantity,
             environment: "Xcode",
             appAccountToken: options.appAccountToken
@@ -231,6 +270,25 @@ extension StoreProduct {
             displayPrice: "$\(price)",
             price: (try? Money(price, .usd)) ?? .zero(.usd),
             subscription: kind == .autoRenewable ? Subscription(groupID: "preview", period: period) : nil
+        )
+    }
+}
+
+extension StoreTransaction {
+    func revoked(at date: Date) -> StoreTransaction {
+        copy(revocationDate: date, isUpgraded: isUpgraded)
+    }
+
+    func upgraded() -> StoreTransaction {
+        copy(revocationDate: revocationDate, isUpgraded: true)
+    }
+
+    private func copy(revocationDate: Date?, isUpgraded: Bool) -> StoreTransaction {
+        StoreTransaction(
+            id: id, originalID: originalID, productID: productID, productKind: productKind,
+            purchaseDate: purchaseDate, expirationDate: expirationDate, revocationDate: revocationDate,
+            isUpgraded: isUpgraded, isFamilyShared: isFamilyShared, purchasedQuantity: purchasedQuantity,
+            environment: environment, appAccountToken: appAccountToken, signedTransaction: signedTransaction
         )
     }
 }
