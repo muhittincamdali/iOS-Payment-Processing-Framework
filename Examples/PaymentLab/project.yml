@@ -1,0 +1,90 @@
+# XcodeGen spec for PaymentLab.xcodeproj. The project file is committed, so XcodeGen is only
+# needed after changing this file: run `xcodegen` in this folder.
+name: PaymentLab
+options:
+  bundleIdPrefix: io.github.muhittincamdali
+  deploymentTarget:
+    iOS: "17.0"
+packages:
+  PaymentKit:
+    path: ../..
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    MARKETING_VERSION: "1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    CODE_SIGN_STYLE: Automatic
+    # Simulator builds sign locally, so the hosted unit tests load into the signed app.
+    CODE_SIGN_IDENTITY: "-"
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+targets:
+  PaymentLab:
+    type: application
+    platform: iOS
+    sources:
+      - path: PaymentLab
+        excludes: [PaymentLab.entitlements, Products.storekit]
+      # Listed for the project navigator and the scheme; StoreKit reads it, the app does not ship it.
+      - path: PaymentLab/Products.storekit
+        buildPhase: none
+    dependencies:
+      - package: PaymentKit
+        product: PaymentKit
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: io.github.muhittincamdali.PaymentLab
+        CODE_SIGN_ENTITLEMENTS: PaymentLab/PaymentLab.entitlements
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_CFBundleDisplayName: Payment Lab
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
+        INFOPLIST_KEY_UISupportedInterfaceOrientations: UIInterfaceOrientationPortrait
+        TARGETED_DEVICE_FAMILY: "1"
+    info:
+      path: PaymentLab/Info.plist
+      properties:
+        # Lets the app reach Examples/ReceiptServer on http://127.0.0.1 during development.
+        NSAppTransportSecurity:
+          NSAllowsLocalNetworking: true
+  PaymentLabTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - PaymentLabTests
+      - path: PaymentLab/Products.storekit
+        buildPhase: resources
+    dependencies:
+      - target: PaymentLab
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: io.github.muhittincamdali.PaymentLab.Tests
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_HOST: $(BUILT_PRODUCTS_DIR)/PaymentLab.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/PaymentLab
+        BUNDLE_LOADER: $(TEST_HOST)
+  PaymentLabUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - PaymentLabUITests
+      - path: PaymentLab/Products.storekit
+        buildPhase: resources
+    dependencies:
+      - target: PaymentLab
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: io.github.muhittincamdali.PaymentLab.UITests
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_TARGET_NAME: PaymentLab
+schemes:
+  PaymentLab:
+    build:
+      targets:
+        PaymentLab: all
+    run:
+      config: Debug
+      storeKitConfiguration: PaymentLab/Products.storekit
+    test:
+      config: Debug
+      targets:
+        - PaymentLabTests
+        - PaymentLabUITests
