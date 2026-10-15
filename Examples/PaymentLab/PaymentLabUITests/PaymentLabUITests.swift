@@ -103,9 +103,16 @@ final class PaymentLabUITests: XCTestCase {
     }
 
     private func clear(_ field: XCUIElement) {
-        field.tap()
-        let text = field.value as? String ?? ""
-        field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: text.count))
+        // A tap in the middle can put the cursor inside the text, so deleting from there leaves
+        // the characters before it; tap at the trailing edge instead.
+        field.coordinate(withNormalizedOffset: CGVector(dx: 0.97, dy: 0.5)).tap()
+        // The field formats as you type, so a deleted space can come back; delete until empty.
+        for _ in 0..<4 {
+            let text = field.value as? String ?? ""
+            guard !text.isEmpty, text != field.placeholderValue else { return }
+            field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: text.count * 2))
+        }
+        XCTFail("Could not clear the field; it still shows \(String(describing: field.value))")
     }
 
     /// Waits for any text in the app whose label contains `text`.
