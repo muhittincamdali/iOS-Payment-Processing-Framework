@@ -84,8 +84,8 @@ enum Fixtures {
 actor InterposingClient: StoreClient {
     let base: TestStoreClient
     private var finishes = true
-    private var holdNextRead = false
-    private var held: CheckedContinuation<Void, Never>?
+    private var readsToHold = 0
+    private var held: [CheckedContinuation<Void, Never>] = []
 
     init(_ base: TestStoreClient) {
         self.base = base
@@ -96,17 +96,19 @@ actor InterposingClient: StoreClient {
         finishes = false
     }
 
-    /// Makes the next `currentEntitlements()` read the transactions now and return them only
-    /// after ``releaseHeldRead()``.
+    /// Makes the next `currentEntitlements()` not yet held read the transactions now and
+    /// return them only after ``releaseHeldRead()``. Call it twice to hold the next two reads.
     func holdNextEntitlementsRead() {
-        holdNextRead = true
+        readsToHold += 1
     }
 
-    var isHoldingRead: Bool { held != nil }
+    var isHoldingRead: Bool { !held.isEmpty }
+    var heldReadCount: Int { held.count }
 
+    /// Lets the read that has been held the longest return.
     func releaseHeldRead() {
-        held?.resume()
-        held = nil
+        guard !held.isEmpty else { return }
+        held.removeFirst().resume()
     }
 
     func products(for ids: Set<String>) async throws -> [StoreProduct] { try await base.products(for: ids) }
@@ -121,9 +123,9 @@ actor InterposingClient: StoreClient {
 
     func currentEntitlements() async -> [TransactionEvent] {
         let snapshot = await base.currentEntitlements()
-        if holdNextRead {
-            holdNextRead = false
-            await withCheckedContinuation { held = $0 }
+        if readsToHold > 0 {
+            readsToHold -= 1
+            await withCheckedContinuation { held.append($0) }
         }
         return snapshot
     }

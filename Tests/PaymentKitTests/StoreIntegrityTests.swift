@@ -183,6 +183,34 @@ struct StoreIntegrityTests {
         store.stop()
     }
 
+    @Test("a refresh returns with what it read even while a newer refresh is still reading")
+    func overlappingRefreshes() async throws {
+        let gated = InterposingClient(client)
+        let store = makeStore(client: gated)
+        await store.start()
+        guard case .purchased(let purchase) = try await store.purchase(Fixtures.lifetime) else {
+            Issue.record("expected a purchase")
+            return
+        }
+        store.stop() // no update listener: only the two refreshes below read the refund
+        try await client.refund(purchase.id)
+        #expect(store.hasEntitlement("pro"))
+
+        await gated.holdNextEntitlementsRead()
+        await gated.holdNextEntitlementsRead()
+        let first = Task { await store.refreshEntitlements() }
+        #expect(await eventually { await gated.heldReadCount == 1 })
+        let second = Task { await store.refreshEntitlements() }
+        #expect(await eventually { await gated.heldReadCount == 2 })
+
+        await gated.releaseHeldRead() // the first refresh ends while the second is still reading
+        await first.value
+        #expect(!store.hasEntitlement("pro"))
+        await gated.releaseHeldRead()
+        await second.value
+        #expect(store.entitlements.isEmpty)
+    }
+
     @Test("after any order of purchases, repeats, refunds, upgrades and renewals, access and coins match what was paid for and not refunded", arguments: 0..<25)
     func randomHistories(seed: UInt64) async throws {
         var generator = SeededGenerator(seed: seed)

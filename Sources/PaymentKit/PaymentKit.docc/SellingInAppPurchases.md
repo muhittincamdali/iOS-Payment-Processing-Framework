@@ -55,7 +55,9 @@ StoreKit sends, or from the unfinished transactions at launch, takes the same pa
 
 Access is never added up: ``Store/entitlements`` is computed again from the current verified
 transactions after every change, so a refunded, revoked, expired or upgraded transaction stops
-granting at once. When two refreshes overlap, the one that started last wins.
+granting at once. When two refreshes overlap, a list read earlier never replaces one read
+later, and ``Store/refreshEntitlements()`` returns only once the entitlements reflect a list read
+after it was called.
 
 Coins are different, because they are counted. The ledger credits each transaction once,
 however often StoreKit sends it, and saves the balance together with the list of handled

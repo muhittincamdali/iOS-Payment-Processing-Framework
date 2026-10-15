@@ -72,8 +72,11 @@ public final class Store {
     @ObservationIgnored private var expiryTask: Task<Void, Never>?
     @ObservationIgnored private var inFlight: Set<TransactionKey> = []
     @ObservationIgnored private var handled = RecentSet<TransactionKey>(capacity: 1_000)
-    /// Counts refreshes, so the result of an older refresh never replaces a newer one.
-    @ObservationIgnored private var refreshGeneration: UInt64 = 0
+    /// Numbers refreshes in the order they start, so the result of an older refresh never
+    /// replaces a newer one.
+    @ObservationIgnored private var startedRefreshes: UInt64 = 0
+    /// The number of the refresh whose result ``entitlements`` holds.
+    @ObservationIgnored private var appliedRefresh: UInt64 = 0
 
     /// Creates a store that talks to `client`.
     ///
@@ -230,13 +233,17 @@ public final class Store {
 
     /// Recomputes ``entitlements`` from the App Store's current entitlements.
     ///
-    /// When refreshes overlap, the one that started last wins, so a list read before a refund
-    /// cannot replace the list read after it.
+    /// When it returns, ``entitlements`` holds a list read after it was called. When refreshes
+    /// overlap, a list is applied unless a refresh that started later has already applied its
+    /// own, so a list read before a refund cannot replace the list read after it.
     public func refreshEntitlements() async {
-        refreshGeneration &+= 1
-        let generation = refreshGeneration
+        startedRefreshes += 1
+        let number = startedRefreshes
         let events = await client.currentEntitlements()
-        guard generation == refreshGeneration else { return }
+        // Skip only when a newer list is already applied: skipping whenever a newer refresh has
+        // merely started would return to the caller with the list from before its call.
+        guard number > appliedRefresh else { return }
+        appliedRefresh = number
         entitlements = resolver.entitlements(from: events, at: now())
         scheduleExpiryRefresh()
     }
