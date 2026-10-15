@@ -50,6 +50,9 @@ public struct Money: Hashable, Sendable {
     /// Pass a `Decimal` that was computed or parsed, not a floating-point literal; for literals
     /// use ``init(_:_:)-(String,_)``.
     ///
+    /// - Parameters:
+    ///   - amount: The amount in the currency's major unit, such as `19.99`.
+    ///   - currency: The currency, which decides how many decimals are allowed.
     /// - Throws: ``MoneyError/tooManyFractionDigits(currency:)`` for `19.999` US dollars,
     ///   ``MoneyError/notANumber`` for `Decimal.nan`, or ``MoneyError/outOfRange``.
     public init(_ amount: Decimal, _ currency: Currency) throws(MoneyError) {
@@ -62,7 +65,10 @@ public struct Money: Hashable, Sendable {
 
     /// Creates an amount by rounding to the currency's minor unit, for example a computed price.
     ///
-    /// - Parameter rule: How to round. The default rounds half to even, as banks do.
+    /// - Parameters:
+    ///   - amount: The amount in the currency's major unit, with any number of decimals.
+    ///   - currency: The currency, whose minor unit the amount is rounded to.
+    ///   - rule: How to round. The default rounds half to even, as banks do.
     /// - Throws: ``MoneyError/notANumber`` or ``MoneyError/outOfRange``.
     public init(
         rounding amount: Decimal,

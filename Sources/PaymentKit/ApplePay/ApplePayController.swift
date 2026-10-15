@@ -83,9 +83,11 @@ public final class ApplePayController {
 
     /// Shows the payment sheet and waits until the person closes it.
     ///
-    /// - Parameter authorize: Called once the person authorizes. Charge the token here, through
-    ///   your server and payment provider, and return the result for the sheet to show. If
-    ///   it returns `.failure`, the person can try another card and `authorize` runs again.
+    /// - Parameters:
+    ///   - request: The payment; it is validated before the sheet shows.
+    ///   - authorize: Called once the person authorizes. Charge the token here, through your
+    ///     server and payment provider, and return the result for the sheet to show. If it
+    ///     returns `.failure`, the person can try another card and `authorize` runs again.
     /// - Throws: ``ApplePayError/invalidRequest(_:)``, ``ApplePayError/couldNotPresent`` or
     ///   ``ApplePayError/paymentInProgress``.
     public func pay(

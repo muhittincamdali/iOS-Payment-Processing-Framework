@@ -59,7 +59,9 @@ public actor TestStoreClient: StoreClient {
 
     /// Creates a client that sells `products`.
     ///
-    /// - Parameter now: The current time, used for purchase and expiration dates.
+    /// - Parameters:
+    ///   - products: The products the client returns and lets you buy.
+    ///   - now: The current time, used for purchase and expiration dates.
     public init(products: [StoreProduct], now: @escaping @Sendable () -> Date = { Date() }) {
         self.catalog = Dictionary(products.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
         self.now = now
