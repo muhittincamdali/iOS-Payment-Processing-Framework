@@ -33,6 +33,10 @@ func refundRemovesPro() async throws -> Bool {
   subscription (``TestStoreClient/renew(_:)``) or record a purchase made on another device
   (``TestStoreClient/purchaseOnAnotherDevice(_:)``); these arrive as updates, as they would from
   the App Store;
+- fail a renewal with a Billing Grace Period
+  (``TestStoreClient/startBillingGracePeriod(for:until:)``): the subscription stays in the
+  current entitlements past its expiration date until the grace period ends, as StoreKit lists
+  it;
 - refund a transaction or revoke a family member's shared purchase
   (``TestStoreClient/refund(_:)``), move a subscriber to a higher plan
   (``TestStoreClient/upgrade(from:to:)``), share a purchase from a family member
@@ -67,7 +71,7 @@ renewals and check that the coins and access always equal what was paid for and 
 
 Unit tests that run inside your app can drive real StoreKit with `SKTestSession` and a StoreKit
 configuration file. PaymentLab's `StoreKitEndToEndTests` do this for purchases, refunds, Ask to
-Buy and an expiry under an accelerated clock:
+Buy, an expiry and a Billing Grace Period under an accelerated clock:
 
 ```swift
 let session = try SKTestSession(configurationFileNamed: "Products")
@@ -76,7 +80,7 @@ session.clearTransactions()
 session.timeRate = .monthlyRenewalEveryThirtySeconds // a one-week trial ends after about 7 seconds
 ```
 
-Two things to know about StoreKit testing in Xcode:
+Things to know about StoreKit testing in Xcode:
 
 - `clearTransactions()` takes effect after a moment; wait until `Transaction.currentEntitlements`
   is empty before the next test starts.
@@ -85,6 +89,10 @@ Two things to know about StoreKit testing in Xcode:
 - Prices from the configuration file are read with the device's region settings, so in a region
   that writes decimals with a comma, `4.99` becomes `4`. Run the simulator in a region that uses
   a period.
+- With `shouldEnterBillingRetryOnRenewal` and `billingGracePeriodIsEnabled`, a failed renewal
+  can appear in `Transaction.currentEntitlements` as a transaction whose expiration date is the
+  end of the next period, through the grace period and billing retry. The renewal status, which
+  ``AppStoreClient`` reads, gives the grace period's end.
 
 ## See Also
 

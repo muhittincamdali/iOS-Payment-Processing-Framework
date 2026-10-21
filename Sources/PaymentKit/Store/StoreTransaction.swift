@@ -11,6 +11,14 @@ public struct StoreTransaction: Identifiable, Hashable, Sendable {
     public let purchaseDate: Date
     /// When a subscription period ends; `nil` for other products.
     public let expirationDate: Date?
+    /// When the Billing Grace Period of an auto-renewable subscription ends: the App Store could
+    /// not renew it and still grants access until then. `nil` when it is not in one.
+    ///
+    /// It comes from the subscription's verified renewal status, not from the transaction:
+    /// ``AppStoreClient`` sets it on the transactions of ``StoreClient/currentEntitlements()``
+    /// whose subscription is in its grace period, and ``EntitlementResolver`` then grants access
+    /// until this date instead of ``expirationDate``.
+    public let gracePeriodExpirationDate: Date?
     /// When the App Store refunded or revoked the purchase; access must end.
     public let revocationDate: Date?
     /// Whether the person moved to a higher subscription in the same group.
@@ -37,6 +45,7 @@ public struct StoreTransaction: Identifiable, Hashable, Sendable {
         productKind: StoreProduct.Kind,
         purchaseDate: Date,
         expirationDate: Date? = nil,
+        gracePeriodExpirationDate: Date? = nil,
         revocationDate: Date? = nil,
         isUpgraded: Bool = false,
         isFamilyShared: Bool = false,
@@ -51,6 +60,7 @@ public struct StoreTransaction: Identifiable, Hashable, Sendable {
         self.productKind = productKind
         self.purchaseDate = purchaseDate
         self.expirationDate = expirationDate
+        self.gracePeriodExpirationDate = gracePeriodExpirationDate
         self.revocationDate = revocationDate
         self.isUpgraded = isUpgraded
         self.isFamilyShared = isFamilyShared

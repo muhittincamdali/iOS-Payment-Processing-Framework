@@ -117,6 +117,20 @@ auto-renewable subscriptions last until their expiration date, non-renewing subs
 the ``ProductDefinition/duration`` you give, and non-consumables for good. When several
 transactions grant the same entitlement, a lifetime purchase wins, then the one that ends last.
 
+When the App Store cannot renew a subscription and you turned on Billing Grace Period in App
+Store Connect, the person keeps access until the grace period ends. ``AppStoreClient`` reads the
+subscription's verified renewal status for each subscription StoreKit lists:
+
+- in a grace period, ``StoreTransaction/gracePeriodExpirationDate`` holds its end, and access
+  lasts until then instead of the expiration date;
+- in billing retry, expired or revoked for the transaction StoreKit listed, the subscription
+  grants nothing;
+- when the status cannot be read or verified, StoreKit's list counts as it is.
+
+Without a grace period, access ends at the expiration date, also while the App Store retries
+the payment. The store schedules a refresh for the end of the grace period as for any other
+expiration date.
+
 ### Handle the outcome of a purchase
 
 ```swift

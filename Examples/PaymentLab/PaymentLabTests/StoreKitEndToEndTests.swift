@@ -147,6 +147,44 @@ struct StoreKitEndToEndTests {
         store.stop()
     }
 
+    @Test("a subscription the App Store could not renew keeps Pro through its Billing Grace Period")
+    func billingGracePeriod() async throws {
+        // The first paid renewal after the free week fails and the subscription enters StoreKit's
+        // billing retry with a grace period; one day passes every second.
+        session.timeRate = .monthlyRenewalEveryThirtySeconds
+        session.shouldEnterBillingRetryOnRenewal = true
+        session.billingGracePeriodIsEnabled = true
+        let model = makeModel()
+        let store = try await started(model)
+        let monthly = try #require(store.product(withID: "pro.monthly"))
+        guard case .purchased(let transaction) = try await store.purchase(monthly, options: model.purchaseOptions()) else {
+            Issue.record("expected a purchase")
+            return
+        }
+        let expiration = try #require(transaction.expirationDate)
+        let groupID = try #require(monthly.subscription?.groupID)
+
+        // Wait until StoreKit reports the subscription in its grace period.
+        var graceEnd: Date?
+        let inGracePeriod = await eventually(timeout: .seconds(60)) {
+            let statuses = (try? await Product.SubscriptionInfo.status(for: groupID)) ?? []
+            graceEnd = statuses.first { $0.state == .inGracePeriod }.flatMap { try? $0.renewalInfo.payloadValue.gracePeriodExpirationDate }
+            return graceEnd != nil
+        }
+        try #require(inGracePeriod, "StoreKit did not enter the grace period after \(expiration)")
+        let end = try #require(graceEnd)
+        await store.refreshEntitlements()
+        #expect(Date() > expiration && Date() < end)
+        #expect(store.hasEntitlement("pro"), "entitlements: \(store.entitlements)")
+        #expect(store.entitlements.map(\.expirationDate) == [end], "access lasts until the grace period ends")
+
+        // Store schedules a refresh for the end of the grace period; nothing here calls it.
+        let wait = Duration.seconds(max(end.timeIntervalSinceNow, 0) + 10)
+        #expect(await eventually(timeout: wait) { store.entitlements.isEmpty }, "grace period end \(end), entitlements: \(store.entitlements)")
+        #expect(!store.hasEntitlement("pro"))
+        store.stop()
+    }
+
     @Test(
         "the receipt server verifies the purchase before it is finished",
         .enabled(if: ReceiptServerClient.fromEnvironment() != nil, "set PAYMENTLAB_SERVER_URL to run it")

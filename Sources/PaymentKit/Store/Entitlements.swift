@@ -56,7 +56,8 @@ public struct ProductDefinition: Hashable, Sendable {
         ProductDefinition(id: id, entitlement: entitlement, duration: nil)
     }
 
-    /// An auto-renewable subscription that unlocks `entitlement` until it expires.
+    /// An auto-renewable subscription that unlocks `entitlement` until it expires, or until its
+    /// Billing Grace Period ends when the App Store could not renew it.
     public static func autoRenewable(_ id: String, unlocks entitlement: String) -> ProductDefinition {
         ProductDefinition(id: id, entitlement: entitlement, duration: nil)
     }
@@ -76,7 +77,8 @@ public struct Entitlement: Identifiable, Hashable, Sendable {
     public let productID: String
     /// The transaction that grants it.
     public let transactionID: UInt64
-    /// When access ends; `nil` for a lifetime purchase.
+    /// When access ends: the end of the subscription period or of its Billing Grace Period;
+    /// `nil` for a lifetime purchase.
     public let expirationDate: Date?
     /// Whether it comes from a family member through Family Sharing.
     public let isFamilyShared: Bool
@@ -97,7 +99,10 @@ public struct Entitlement: Identifiable, Hashable, Sendable {
 /// The rules, applied to verified transactions only:
 /// - refunded or revoked transactions grant nothing;
 /// - a subscription that was upgraded grants nothing (the higher one does);
-/// - auto-renewable subscriptions grant access until their expiration date;
+/// - auto-renewable subscriptions grant access until their expiration date, or, when the App
+///   Store could not renew them and gave them a Billing Grace Period, until the grace period
+///   ends (``StoreTransaction/gracePeriodExpirationDate``); without a grace period, access ends
+///   at the expiration date, also while the App Store retries the payment;
 /// - non-renewing subscriptions grant access for their ``ProductDefinition/duration`` after
 ///   the purchase date;
 /// - non-consumables grant access with no end;
@@ -138,7 +143,10 @@ public struct EntitlementResolver: Sendable {
             expiration = nil
         case .autoRenewable:
             guard let end = transaction.expirationDate else { return nil }
-            expiration = end
+            // In a Billing Grace Period the App Store grants access past the period's end.
+            // In a Billing Grace Period the renewal failed: the App Store grants access until
+            // the grace period ends, past the end of the period that was paid for.
+            expiration = transaction.gracePeriodExpirationDate ?? end
         case .nonRenewable:
             guard let duration = definition.duration,
                   let end = duration.date(after: transaction.purchaseDate, calendar: calendar)

@@ -54,12 +54,57 @@ public final class AppStoreClient: StoreClient {
         }
     }
 
+    /// StoreKit's current entitlements, checked against the verified renewal status of each
+    /// subscription in them.
+    ///
+    /// A subscription in its Billing Grace Period gets
+    /// ``StoreTransaction/gracePeriodExpirationDate``; one whose status names the same transaction
+    /// as in billing retry, expired or revoked is left out. A status that cannot be read or
+    /// verified leaves StoreKit's list as it is.
     public func currentEntitlements() async -> [TransactionEvent] {
+        var statuses: [String: [Product.SubscriptionInfo.Status]] = [:]
         var events: [TransactionEvent] = []
         for await result in Transaction.currentEntitlements {
-            events.append(await event(from: result, remember: false))
+            var gracePeriodEnd: Date?
+            if case .verified(let transaction) = result,
+               transaction.productType == .autoRenewable,
+               let groupID = transaction.subscriptionGroupID {
+                if statuses[groupID] == nil {
+                    statuses[groupID] = (try? await Product.SubscriptionInfo.status(for: groupID)) ?? []
+                }
+                switch Self.renewalStanding(of: transaction, in: statuses[groupID] ?? []) {
+                case .active: break
+                case .gracePeriod(let end): gracePeriodEnd = end
+                case .ended: continue
+                }
+            }
+            events.append(await event(from: result, remember: false, gracePeriodEnd: gracePeriodEnd))
         }
         return events
+    }
+
+    private enum RenewalStanding {
+        case active
+        case gracePeriod(until: Date)
+        case ended
+    }
+
+    /// What the verified status that names this transaction says about it.
+    private static func renewalStanding(of transaction: Transaction, in statuses: [Product.SubscriptionInfo.Status]) -> RenewalStanding {
+        for status in statuses {
+            guard case .verified(let current) = status.transaction, current.id == transaction.id,
+                  case .verified(let renewal) = status.renewalInfo
+            else { continue }
+            switch status.state {
+            case .inGracePeriod:
+                return renewal.gracePeriodExpirationDate.map { .gracePeriod(until: $0) } ?? .active
+            case .inBillingRetryPeriod, .expired, .revoked:
+                return .ended
+            default:
+                return .active
+            }
+        }
+        return .active
     }
 
     public func unfinishedTransactions() async -> [TransactionEvent] {
@@ -98,12 +143,12 @@ public final class AppStoreClient: StoreClient {
         try await AppStore.sync()
     }
 
-    private func event(from result: VerificationResult<Transaction>, remember: Bool) async -> TransactionEvent {
+    private func event(from result: VerificationResult<Transaction>, remember: Bool, gracePeriodEnd: Date? = nil) async -> TransactionEvent {
         let transaction = result.unsafePayloadValue
         if remember {
             await cache.remember(transaction)
         }
-        let value = StoreTransaction(transaction, signedTransaction: result.jwsRepresentation)
+        let value = StoreTransaction(transaction, signedTransaction: result.jwsRepresentation, gracePeriodEnd: gracePeriodEnd)
         switch result {
         case .verified:
             return TransactionEvent(transaction: value, verification: .verified)
@@ -208,7 +253,7 @@ extension SubscriptionPeriod {
 }
 
 extension StoreTransaction {
-    init(_ transaction: Transaction, signedTransaction: String) {
+    init(_ transaction: Transaction, signedTransaction: String, gracePeriodEnd: Date? = nil) {
         let kind: StoreProduct.Kind
         switch transaction.productType {
         case .consumable: kind = .consumable
@@ -223,6 +268,7 @@ extension StoreTransaction {
             productKind: kind,
             purchaseDate: transaction.purchaseDate,
             expirationDate: transaction.expirationDate,
+            gracePeriodExpirationDate: gracePeriodEnd,
             revocationDate: transaction.revocationDate,
             isUpgraded: transaction.isUpgraded,
             isFamilyShared: transaction.ownershipType == .familyShared,

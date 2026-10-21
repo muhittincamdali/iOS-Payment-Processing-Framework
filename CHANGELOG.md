@@ -29,8 +29,12 @@ results; they are removed (see "Removed").
   `EntitlementResolver`, `PurchaseOptions` and the typed `StoreError`.
 - `StoreClient` with `AppStoreClient` (StoreKit 2, `purchase(confirmIn:)` on visionOS) and
   `TestStoreClient`, an in-memory App Store for tests and previews that simulates Ask to Buy,
-  renewals, refunds, upgrades, Family Sharing, repeated deliveries, purchases on other devices and
-  unverified updates.
+  renewals, refunds, upgrades, Family Sharing, repeated deliveries, purchases on other devices,
+  failed renewals with a Billing Grace Period and unverified updates.
+- Billing Grace Period: `AppStoreClient` reads each listed subscription's verified renewal
+  status, `StoreTransaction.gracePeriodExpirationDate` holds the end of a grace period, and
+  `EntitlementResolver` grants access until then. A subscription whose status is billing retry,
+  expired or revoked grants nothing.
 - `Money` and `Currency`: exact minor units with ISO 4217 digits, strict and locale-aware
   parsing that rejects misplaced grouping separators and digits `Decimal` would round, rounding
   rules, arithmetic that checks currencies and range, allocation by ratios without losing a

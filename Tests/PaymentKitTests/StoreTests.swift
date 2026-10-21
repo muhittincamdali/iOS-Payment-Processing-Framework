@@ -52,6 +52,34 @@ struct StoreTests {
         store.stop()
     }
 
+    @Test("a subscription the App Store could not renew keeps access through its Billing Grace Period")
+    func billingGracePeriod() async throws {
+        let store = makeStore()
+        await store.start()
+        guard case .purchased(let transaction) = try await store.purchase(Fixtures.monthly) else {
+            Issue.record("expected a purchase")
+            return
+        }
+        let expiration = try #require(transaction.expirationDate)
+        let graceEnd = expiration.addingTimeInterval(16 * 86_400)
+        try await client.startBillingGracePeriod(for: "pro.monthly", until: graceEnd)
+
+        clock.advance(by: expiration.timeIntervalSince(clock.now) + 3_600)
+        await store.refreshEntitlements() // what the expiry refresh does at the expiration date
+        #expect(store.hasEntitlement("pro"), "StoreKit still lists the subscription in its grace period")
+        #expect(store.entitlements.map(\.expirationDate) == [graceEnd])
+
+        clock.advance(by: graceEnd.timeIntervalSince(clock.now))
+        #expect(!store.hasEntitlement("pro"), "access ends with the grace period even before a refresh")
+        await store.refreshEntitlements()
+        #expect(store.entitlements.isEmpty)
+        #expect(recorder.changes == [.granted(transaction)], "a grace period sends no transaction")
+
+        let renewal = try await client.renew("pro.monthly") // the person fixed the payment method
+        #expect(await eventually { store.entitlements.map(\.transactionID) == [renewal.id] })
+        store.stop()
+    }
+
     @Test("a consumable is delivered with its quantity and grants no entitlement")
     func consumablePurchase() async throws {
         let store = makeStore()

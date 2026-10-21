@@ -13,6 +13,7 @@ struct EntitlementResolverTests {
         _ kind: StoreProduct.Kind,
         purchased: TimeInterval = -3_600,
         expires: TimeInterval? = nil,
+        graceEnds: TimeInterval? = nil,
         revoked: Bool = false,
         upgraded: Bool = false,
         family: Bool = false
@@ -22,6 +23,7 @@ struct EntitlementResolverTests {
                 id: id, productID: productID, productKind: kind,
                 purchaseDate: now.addingTimeInterval(purchased),
                 expirationDate: expires.map { now.addingTimeInterval($0) },
+                gracePeriodExpirationDate: graceEnds.map { now.addingTimeInterval($0) },
                 revocationDate: revoked ? now : nil,
                 isUpgraded: upgraded, isFamilyShared: family
             ),
@@ -75,6 +77,31 @@ struct EntitlementResolverTests {
             transaction(2, "pro.monthly", .autoRenewable, expires: 600)
         ], at: now)
         #expect(later.map(\.transactionID) == [1])
+    }
+
+    @Test("a subscription in its Billing Grace Period grants access until the grace period ends")
+    func billingGracePeriod() {
+        let inGrace = resolver.entitlements(from: [
+            transaction(1, "pro.monthly", .autoRenewable, expires: -3_600, graceEnds: 6 * 86_400)
+        ], at: now)
+        #expect(inGrace.map(\.transactionID) == [1])
+        #expect(inGrace.first?.expirationDate == now.addingTimeInterval(6 * 86_400))
+
+        let ended = resolver.entitlements(from: [
+            transaction(1, "pro.monthly", .autoRenewable, expires: -7 * 86_400, graceEnds: -1),
+            transaction(2, "pro.yearly", .autoRenewable, expires: -3_600, graceEnds: 6 * 86_400, revoked: true),
+            transaction(3, "pro.yearly", .autoRenewable, expires: -3_600, graceEnds: 6 * 86_400, upgraded: true)
+        ], at: now)
+        #expect(ended.isEmpty)
+
+        // The grace period's end is when access ends, whatever date the failed period had.
+        let failedPeriod = resolver.entitlements(from: [
+            transaction(1, "pro.monthly", .autoRenewable, expires: 30 * 86_400, graceEnds: 6 * 86_400)
+        ], at: now)
+        #expect(failedPeriod.first?.expirationDate == now.addingTimeInterval(6 * 86_400))
+        #expect(resolver.entitlements(from: [
+            transaction(1, "pro.monthly", .autoRenewable, expires: 30 * 86_400, graceEnds: -1)
+        ], at: now).isEmpty)
     }
 
     @Test("an own purchase wins over a family-shared one")

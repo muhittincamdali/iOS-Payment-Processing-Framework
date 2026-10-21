@@ -5,9 +5,10 @@ import Foundation
 ///
 /// It behaves like the App Store where ``Store`` can tell the difference: purchases create
 /// transactions that stay unfinished until finished, auto-renewable subscriptions expire after
-/// their period, refunds set a revocation date, and renewals, refunds, Ask to Buy approvals and
-/// purchases on other devices arrive through ``transactionUpdates()``. Only one listener
-/// receives the updates, as with one `Store`.
+/// their period or at the end of a Billing Grace Period
+/// (``startBillingGracePeriod(for:until:)``), refunds set a revocation date, and renewals,
+/// refunds, Ask to Buy approvals and purchases on other devices arrive through
+/// ``transactionUpdates()``. Only one listener receives the updates, as with one `Store`.
 ///
 /// ```swift
 /// let client = TestStoreClient(products: [.preview(id: "pro.monthly", kind: .autoRenewable)])
@@ -46,6 +47,9 @@ public actor TestStoreClient: StoreClient {
     /// Transactions whose signature does not verify; StoreKit reports them as unverified
     /// wherever they appear.
     private var unverifiedIDs: Set<UInt64> = []
+    /// The end of the Billing Grace Period of a subscription's latest transaction, by
+    /// transaction identifier.
+    private var gracePeriodEnds: [UInt64: Date] = [:]
     private nonisolated let updates: AsyncStream<TransactionEvent>
     private nonisolated let continuation: AsyncStream<TransactionEvent>.Continuation
 
@@ -110,9 +114,13 @@ public actor TestStoreClient: StoreClient {
     public func currentEntitlements() async -> [TransactionEvent] {
         let date = now()
         var latest: [String: StoreTransaction] = [:]
-        for transaction in transactions where transaction.productKind != .consumable {
+        for var transaction in transactions where transaction.productKind != .consumable {
             guard transaction.revocationDate == nil, !transaction.isUpgraded else { continue }
-            if transaction.productKind == .autoRenewable, (transaction.expirationDate ?? .distantPast) <= date { continue }
+            if transaction.productKind == .autoRenewable, (transaction.expirationDate ?? .distantPast) <= date {
+                // StoreKit keeps listing a subscription in its Billing Grace Period.
+                guard let end = gracePeriodEnds[transaction.id], end > date else { continue }
+                transaction = transaction.inGracePeriod(until: end)
+            }
             if let current = latest[transaction.productID], current.purchaseDate > transaction.purchaseDate { continue }
             latest[transaction.productID] = transaction
         }
@@ -155,11 +163,26 @@ public actor TestStoreClient: StoreClient {
         return emit(makeTransaction(productID, options: PurchaseOptions()))
     }
 
-    /// Renews an auto-renewable subscription for one more period from now.
+    /// Renews an auto-renewable subscription for one more period from now; this also ends a
+    /// Billing Grace Period.
     @discardableResult
     public func renew(_ productID: String) throws -> StoreTransaction {
         guard let previous = transactions.last(where: { $0.productID == productID }) else { throw StoreError.productNotFound(productID) }
+        gracePeriodEnds[previous.id] = nil
         return emit(makeTransaction(productID, options: PurchaseOptions(appAccountToken: previous.appAccountToken), originalID: previous.originalID))
+    }
+
+    /// Fails the next renewal of an auto-renewable subscription, as when the App Store cannot
+    /// charge the person, and gives it a Billing Grace Period that ends at `end`.
+    ///
+    /// No transaction arrives. Once its period has ended, the latest transaction stays in
+    /// ``currentEntitlements()`` with ``StoreTransaction/gracePeriodExpirationDate`` until `end`,
+    /// as StoreKit lists a subscription in its grace period; ``renew(_:)`` ends it.
+    public func startBillingGracePeriod(for productID: String, until end: Date) throws {
+        guard let latest = transactions.last(where: { $0.productID == productID && $0.productKind == .autoRenewable }) else {
+            throw StoreError.productNotFound(productID)
+        }
+        gracePeriodEnds[latest.id] = end
     }
 
     /// Refunds a transaction: it gets a revocation date and arrives again as an update. Use it
@@ -276,17 +299,22 @@ extension StoreProduct {
 
 extension StoreTransaction {
     func revoked(at date: Date) -> StoreTransaction {
-        copy(revocationDate: date, isUpgraded: isUpgraded)
+        copy(revocationDate: date, isUpgraded: isUpgraded, gracePeriodExpirationDate: gracePeriodExpirationDate)
     }
 
     func upgraded() -> StoreTransaction {
-        copy(revocationDate: revocationDate, isUpgraded: true)
+        copy(revocationDate: revocationDate, isUpgraded: true, gracePeriodExpirationDate: gracePeriodExpirationDate)
     }
 
-    private func copy(revocationDate: Date?, isUpgraded: Bool) -> StoreTransaction {
+    func inGracePeriod(until end: Date) -> StoreTransaction {
+        copy(revocationDate: revocationDate, isUpgraded: isUpgraded, gracePeriodExpirationDate: end)
+    }
+
+    private func copy(revocationDate: Date?, isUpgraded: Bool, gracePeriodExpirationDate: Date?) -> StoreTransaction {
         StoreTransaction(
             id: id, originalID: originalID, productID: productID, productKind: productKind,
-            purchaseDate: purchaseDate, expirationDate: expirationDate, revocationDate: revocationDate,
+            purchaseDate: purchaseDate, expirationDate: expirationDate,
+            gracePeriodExpirationDate: gracePeriodExpirationDate, revocationDate: revocationDate,
             isUpgraded: isUpgraded, isFamilyShared: isFamilyShared, purchasedQuantity: purchasedQuantity,
             environment: environment, appAccountToken: appAccountToken, signedTransaction: signedTransaction
         )
