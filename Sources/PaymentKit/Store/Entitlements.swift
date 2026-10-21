@@ -43,7 +43,8 @@ public struct ProductDefinition: Hashable, Sendable {
     }
 
     /// A consumable that adds `amount` per unit to the `account` balance of the store's
-    /// ``ConsumableLedger``, exactly once per transaction, and takes it back on a refund.
+    /// ``ConsumableLedger``, exactly once per transaction, and takes it back on a refund that
+    /// StoreKit sends to the app (it does not send the refund of a finished transaction).
     ///
     /// An `amount` of zero or less, or an empty account name, is reported as a delivery error
     /// when the product is bought, and the transaction stays unfinished.

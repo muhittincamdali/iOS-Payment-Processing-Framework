@@ -23,7 +23,9 @@ chain up to Apple's root certificate with Apple's App Store Server Library, whic
 Deliver to the server inside the `deliver` closure of ``Store``. The transaction is finished
 only after the server answered, so a purchase made while the server was unreachable is sent
 again on the next launch. Refunds come through the same closure as
-``TransactionChange/revoked(_:)``, with the same signed transaction:
+``TransactionChange/revoked(_:)``, with the same signed transaction, except the refund of a
+consumable whose transaction was already finished: StoreKit does not send it to the app, so the
+server learns of it only from the `REFUND` notification described below.
 
 ```swift
 let store = Store(catalog: catalog) { change in

@@ -1,4 +1,4 @@
-<!-- i18n-source: README.md@1b83c426fe60ecc12a9cbc423b99c738c04630fe status=reviewed -->
+<!-- i18n-source: README.md@f9a69a80d1ecc14e285680c13d281ae25fadca12 status=reviewed -->
 <!-- brand:start -->
 
 <p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/muhittincamdali/iOS-Payment-Processing-Framework/master/.github/brand/banner-dark.svg"><source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/muhittincamdali/iOS-Payment-Processing-Framework/master/.github/brand/banner-light.svg"><img src="https://raw.githubusercontent.com/muhittincamdali/iOS-Payment-Processing-Framework/master/.github/brand/banner-light.svg" alt="PaymentKit: Sell in-app purchases with StoreKit 2, take Apple Pay and keep money exact on Apple platforms."></picture></p>
@@ -137,7 +137,7 @@ func makeStore(server: URL) -> Store {
 
 `store.hasEntitlement("pro")` beantwortet, ob Pro gerade freigeschaltet ist. Der Wert wird nach jeder Änderung aus den verifizierten Transaktionen von StoreKit neu berechnet, sodass eine Rückerstattung, ein Ablauf oder ein Upgrade den Zugriff entzieht; er wird nie aufaddiert. Transaktionen, die StoreKit nicht verifizieren kann, werden weder geliefert noch abgeschlossen.
 
-Münzen schreibt ein `ConsumableLedger` pro Transaktion genau einmal gut, egal wie oft StoreKit sie sendet, und eine Rückerstattung bucht sie ebenfalls nur einmal ab (der Kontostand kann unter null fallen, wenn sie schon ausgegeben wurden). Gib sie mit `try await store.spend(30, of: "coins")` aus. Das Ledger liegt auf dem Gerät; für alles, was einen Wert hat, ist der Server die maßgebliche Quelle.
+Münzen schreibt ein `ConsumableLedger` pro Transaktion genau einmal gut, egal wie oft StoreKit sie sendet. Gib sie mit `try await store.spend(30, of: "coins")` aus. Das Ledger liegt auf dem Gerät und sieht nur die Rückerstattungen, die StoreKit sendet: Die Rückerstattung eines noch nicht abgeschlossenen Pakets kommt an, und das Paket schreibt nichts gut, aber die Rückerstattung eines abgeschlossenen Pakets sendet StoreKit nicht an die App, sodass diese Münzen im Ledger bleiben. Von dieser Rückerstattung erfährt nur der Server, über eine `REFUND`-App-Store-Server-Notification; für alles, was einen Wert hat, ist der Server die maßgebliche Quelle.
 
 ### Einen Kauf abwickeln
 

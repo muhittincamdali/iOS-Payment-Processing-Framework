@@ -30,7 +30,9 @@ import Observation
 /// ``entitlements`` is recomputed before that call too, so the access ends even when `deliver`
 /// throws and the refund stays unfinished until it is delivered. A consumable's refund takes back
 /// what the ledger credited for that transaction, even after an app update removed the product
-/// from the catalog or changed its credit.
+/// from the catalog or changed its credit. StoreKit sends a consumable's refund only while its
+/// transaction is unfinished; the refund of a finished one reaches only your server (see
+/// ``ConsumableLedger``).
 ///
 /// A refund or revocation is final while the store runs: a copy of the same transaction without
 /// a revocation date that arrives after it, because StoreKit read it before the refund, is not

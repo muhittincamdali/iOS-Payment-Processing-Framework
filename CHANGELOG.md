@@ -22,8 +22,10 @@ results; they are removed (see "Removed").
   delivery leaves the transaction unfinished for the next launch. `deliver` receives a
   `TransactionChange`, `.granted` or `.revoked`, so a refund cannot pass for a purchase.
 - `ConsumableLedger` and `.consumable(_:credits:to:)`: coin-style balances credited once per
-  transaction and taken back once on a refund, saved with the handled transactions in one
-  atomic write; `Store.balance(of:)` and `Store.spend(_:of:)`.
+  transaction and taken back once on a refund that StoreKit sends to the app, saved with the
+  handled transactions in one atomic write; `Store.balance(of:)` and `Store.spend(_:of:)`.
+  StoreKit does not send the refund of a consumable whose transaction was finished, so only the
+  server sees that refund, from a `REFUND` notification.
 - `ProductDefinition` (consumable, non-consumable, auto-renewable, non-renewing with a duration),
   `StoreProduct`, `SubscriptionPeriod`, `StoreTransaction`, `TransactionEvent`, `Entitlement`,
   `EntitlementResolver`, `PurchaseOptions` and the typed `StoreError`.

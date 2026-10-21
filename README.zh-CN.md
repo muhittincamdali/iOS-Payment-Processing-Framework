@@ -1,4 +1,4 @@
-<!-- i18n-source: README.md@1b83c426fe60ecc12a9cbc423b99c738c04630fe status=reviewed -->
+<!-- i18n-source: README.md@f9a69a80d1ecc14e285680c13d281ae25fadca12 status=reviewed -->
 <!-- brand:start -->
 
 <p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/muhittincamdali/iOS-Payment-Processing-Framework/master/.github/brand/banner-dark.svg"><source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/muhittincamdali/iOS-Payment-Processing-Framework/master/.github/brand/banner-light.svg"><img src="https://raw.githubusercontent.com/muhittincamdali/iOS-Payment-Processing-Framework/master/.github/brand/banner-light.svg" alt="PaymentKit: Sell in-app purchases with StoreKit 2, take Apple Pay and keep money exact on Apple platforms."></picture></p>
@@ -137,7 +137,7 @@ func makeStore(server: URL) -> Store {
 
 `store.hasEntitlement("pro")` 回答 Pro 当前是否已解锁。每次变化之后，它都会根据 StoreKit 已验证的交易重新计算，因此退款、到期或升级都会收回访问权限；它从来不是累加出来的。StoreKit 无法验证的交易既不会被交付，也不会被完成。
 
-代币由 `ConsumableLedger` 按每笔交易入账一次，无论 StoreKit 重复发送多少次；退款也只会把它们扣回一次（如果代币已经花掉，余额可能降到零以下）。用 `try await store.spend(30, of: "coins")` 来消费代币。账本保存在设备上；凡是有价值的东西，都应以服务器为准。
+代币由 `ConsumableLedger` 按每笔交易入账一次，无论 StoreKit 重复发送多少次。用 `try await store.spend(30, of: "coins")` 来消费代币。账本保存在设备上，只能看到 StoreKit 发来的退款：尚未完成的代币包的退款会送达，该代币包不会入账；但已完成的代币包的退款，StoreKit 不会发给应用，因此这些代币会留在账本里。只有服务器会通过 `REFUND` App Store Server Notification 得知这笔退款；凡是有价值的东西，都应以服务器为准。
 
 ### 处理一次购买
 

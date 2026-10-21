@@ -8,8 +8,9 @@ enum Catalog {
         .autoRenewable("pro.monthly", unlocks: "pro"),
         .autoRenewable("pro.yearly", unlocks: "pro"),
         .nonConsumable("pro.lifetime", unlocks: "pro"),
-        // PaymentKit's ledger credits 100 coins per pack once per transaction and takes them
-        // back on a refund.
+        // PaymentKit's ledger credits 100 coins per pack once per transaction. StoreKit sends
+        // the app a pack's refund only while the pack is unfinished; the refund of a finished
+        // pack reaches only the receipt server, whose balance leaves it out.
         .consumable("coins.100", credits: 100, to: "coins")
     ]
 }

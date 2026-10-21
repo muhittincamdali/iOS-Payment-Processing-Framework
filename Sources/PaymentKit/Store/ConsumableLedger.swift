@@ -13,16 +13,19 @@ import Foundation
 /// The rules:
 /// - a transaction credits its account once, however often StoreKit sends it (as an update, as
 ///   unfinished at launch, again after a crash before `finish()`);
-/// - a refund takes the credit back once, even if the coins were spent; the balance can then go
-///   below zero, and your app decides what that means (for example, no spending until it is
-///   positive again);
+/// - a refund that reaches it takes the credit back once, even if the coins were spent; the
+///   balance can then go below zero, and your app decides what that means (for example, no
+///   spending until it is positive again);
 /// - a refund that arrives before its purchase makes the purchase credit nothing;
 /// - the balance and the list of handled transactions are written to disk together in one
 ///   atomic write, so a crash leaves either both changes or neither. If the write fails the
 ///   change is undone and the error is thrown, so the transaction stays unfinished.
 ///
-/// The ledger lives on this device. For anything of value, your server, which sees App Store
-/// Server Notifications, is the source of truth.
+/// The ledger lives on this device and sees only the refunds StoreKit sends to the app. StoreKit
+/// sends the refund of a consumable while its transaction is unfinished, but not once the
+/// transaction is finished, so coins that were credited, finished and then refunded stay in the
+/// ledger. Only your server learns of that refund, from a `REFUND` App Store Server
+/// Notification: for anything of value, the server is the source of truth.
 public actor ConsumableLedger {
     /// Why a ledger operation failed.
     public enum Failure: Error, Hashable, Sendable {

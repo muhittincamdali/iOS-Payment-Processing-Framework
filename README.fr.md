@@ -1,4 +1,4 @@
-<!-- i18n-source: README.md@1b83c426fe60ecc12a9cbc423b99c738c04630fe status=reviewed -->
+<!-- i18n-source: README.md@f9a69a80d1ecc14e285680c13d281ae25fadca12 status=reviewed -->
 <!-- brand:start -->
 
 <p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/muhittincamdali/iOS-Payment-Processing-Framework/master/.github/brand/banner-dark.svg"><source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/muhittincamdali/iOS-Payment-Processing-Framework/master/.github/brand/banner-light.svg"><img src="https://raw.githubusercontent.com/muhittincamdali/iOS-Payment-Processing-Framework/master/.github/brand/banner-light.svg" alt="PaymentKit: Sell in-app purchases with StoreKit 2, take Apple Pay and keep money exact on Apple platforms."></picture></p>
@@ -137,7 +137,7 @@ func makeStore(server: URL) -> Store {
 
 `store.hasEntitlement("pro")` indique si Pro est débloqué à l’instant. La valeur est recalculée à partir des transactions vérifiées de StoreKit après chaque changement, si bien qu’un remboursement, une expiration ou une mise à niveau retire l’accès ; elle n’est jamais cumulée. Les transactions que StoreKit ne peut pas vérifier ne sont jamais livrées ni terminées.
 
-Les pièces sont créditées par un `ConsumableLedger` une seule fois par transaction, quel que soit le nombre de fois où StoreKit l’envoie, et un remboursement les reprend une seule fois (le solde peut passer sous zéro si elles ont été dépensées). Dépensez-les avec `try await store.spend(30, of: "coins")`. Le registre est sur l’appareil ; pour tout ce qui a de la valeur, la source de vérité est le serveur.
+Les pièces sont créditées par un `ConsumableLedger` une seule fois par transaction, quel que soit le nombre de fois où StoreKit l’envoie. Dépensez-les avec `try await store.spend(30, of: "coins")`. Le registre est sur l’appareil et ne voit que les remboursements que StoreKit envoie : le remboursement d’un pack pas encore terminé arrive, et le pack ne crédite rien, mais StoreKit n’envoie pas à l’app le remboursement d’un pack terminé, si bien que ces pièces restent dans le registre. Seul le serveur apprend ce remboursement, par une App Store Server Notification `REFUND` ; pour tout ce qui a de la valeur, la source de vérité est le serveur.
 
 ### Traiter un achat
 

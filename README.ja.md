@@ -1,4 +1,4 @@
-<!-- i18n-source: README.md@1b83c426fe60ecc12a9cbc423b99c738c04630fe status=reviewed -->
+<!-- i18n-source: README.md@f9a69a80d1ecc14e285680c13d281ae25fadca12 status=reviewed -->
 <!-- brand:start -->
 
 <p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/muhittincamdali/iOS-Payment-Processing-Framework/master/.github/brand/banner-dark.svg"><source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/muhittincamdali/iOS-Payment-Processing-Framework/master/.github/brand/banner-light.svg"><img src="https://raw.githubusercontent.com/muhittincamdali/iOS-Payment-Processing-Framework/master/.github/brand/banner-light.svg" alt="PaymentKit: Sell in-app purchases with StoreKit 2, take Apple Pay and keep money exact on Apple platforms."></picture></p>
@@ -137,7 +137,7 @@ func makeStore(server: URL) -> Store {
 
 `store.hasEntitlement("pro")` は、Pro がいま解除されているかどうかを返します。この値は変更のたびに StoreKit の検証済みトランザクションから再計算されるため、返金、期限切れ、アップグレードのいずれでもアクセス権は取り消され、値が積み上げられることはありません。StoreKit が検証できないトランザクションは、配信も完了もされません。
 
-コインは、StoreKit が同じトランザクションを何度送ってきても、`ConsumableLedger` がトランザクションごとに 1 回だけ付与します。返金でもコインは 1 回だけ差し引かれます（使用済みの場合、残高はマイナスになることがあります）。コインを使うには `try await store.spend(30, of: "coins")` を呼び出します。台帳はデバイス上にあります。価値のあるものについては、サーバーが信頼できる情報源です。
+コインは、StoreKit が同じトランザクションを何度送ってきても、`ConsumableLedger` がトランザクションごとに 1 回だけ付与します。コインを使うには `try await store.spend(30, of: "coins")` を呼び出します。台帳はデバイス上にあり、StoreKit が送ってくる返金しか見えません。まだ完了していないパックの返金は届き、そのパックは何も付与しません。しかし、完了済みのパックの返金を StoreKit はアプリに送らないため、そのコインは台帳に残ります。その返金を知るのはサーバーだけで、`REFUND` の App Store Server Notification で通知されます。価値のあるものについては、サーバーが信頼できる情報源です。
 
 ### 購入を処理する
 

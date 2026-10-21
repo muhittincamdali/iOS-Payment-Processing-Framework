@@ -1,4 +1,4 @@
-<!-- i18n-source: README.md@1b83c426fe60ecc12a9cbc423b99c738c04630fe status=reviewed -->
+<!-- i18n-source: README.md@f9a69a80d1ecc14e285680c13d281ae25fadca12 status=reviewed -->
 <!-- brand:start -->
 
 <p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/muhittincamdali/iOS-Payment-Processing-Framework/master/.github/brand/banner-dark.svg"><source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/muhittincamdali/iOS-Payment-Processing-Framework/master/.github/brand/banner-light.svg"><img src="https://raw.githubusercontent.com/muhittincamdali/iOS-Payment-Processing-Framework/master/.github/brand/banner-light.svg" alt="PaymentKit: Sell in-app purchases with StoreKit 2, take Apple Pay and keep money exact on Apple platforms."></picture></p>
@@ -137,7 +137,7 @@ func makeStore(server: URL) -> Store {
 
 `store.hasEntitlement("pro")` отвечает, разблокирован ли Pro сейчас. Значение пересчитывается по проверенным транзакциям StoreKit после каждого изменения, поэтому возврат, истечение срока или апгрейд отзывают доступ; оно никогда не накапливается. Транзакции, которые StoreKit не может проверить, не доставляются и не завершаются.
 
-Монеты начисляет `ConsumableLedger` один раз за транзакцию, сколько бы раз StoreKit её ни присылал, а возврат списывает их обратно тоже один раз (баланс может уйти ниже нуля, если монеты уже потрачены). Тратьте их через `try await store.spend(30, of: "coins")`. Журнал хранится на устройстве; для всего, что имеет ценность, источником истины остаётся сервер.
+Монеты начисляет `ConsumableLedger` один раз за транзакцию, сколько бы раз StoreKit её ни присылал. Тратьте их через `try await store.spend(30, of: "coins")`. Журнал хранится на устройстве и видит только те возвраты, которые присылает StoreKit: возврат ещё не завершённого пакета приходит, и пакет ничего не начисляет, но возврат завершённого пакета StoreKit в приложение не присылает, поэтому эти монеты остаются в журнале. Об этом возврате узнаёт только сервер, из App Store Server Notification `REFUND`; для всего, что имеет ценность, источником истины остаётся сервер.
 
 ### Обработка покупки
 

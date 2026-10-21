@@ -1,4 +1,4 @@
-<!-- i18n-source: README.md@1b83c426fe60ecc12a9cbc423b99c738c04630fe status=reviewed -->
+<!-- i18n-source: README.md@f9a69a80d1ecc14e285680c13d281ae25fadca12 status=reviewed -->
 <!-- brand:start -->
 
 <p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/muhittincamdali/iOS-Payment-Processing-Framework/master/.github/brand/banner-dark.svg"><source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/muhittincamdali/iOS-Payment-Processing-Framework/master/.github/brand/banner-light.svg"><img src="https://raw.githubusercontent.com/muhittincamdali/iOS-Payment-Processing-Framework/master/.github/brand/banner-light.svg" alt="PaymentKit: Sell in-app purchases with StoreKit 2, take Apple Pay and keep money exact on Apple platforms."></picture></p>
@@ -137,7 +137,7 @@ func makeStore(server: URL) -> Store {
 
 `store.hasEntitlement("pro")`, Pro'nun şu an açık olup olmadığını söyler. Her değişiklikten sonra StoreKit'in doğrulanmış işlemlerinden yeniden hesaplanır; bu yüzden bir iade, bir süre sonu ya da bir yükseltme erişimi geri alır, değer hiçbir zaman toplanarak oluşturulmaz. StoreKit'in doğrulayamadığı işlemler ne teslim edilir ne de bitirilir.
 
-Jetonlar, StoreKit işlemi kaç kez gönderirse göndersin işlem başına bir kez `ConsumableLedger` tarafından eklenir; iade de onları bir kez geri alır (harcanmışlarsa bakiye sıfırın altına inebilir). Jetonları `try await store.spend(30, of: "coins")` ile harcayın. Defter cihazdadır; değer taşıyan her şey için doğruluk kaynağı sunucudur.
+Jetonlar, StoreKit işlemi kaç kez gönderirse göndersin işlem başına bir kez `ConsumableLedger` tarafından eklenir. Jetonları `try await store.spend(30, of: "coins")` ile harcayın. Defter cihazdadır ve yalnızca StoreKit'in gönderdiği iadeleri görür: henüz bitirilmemiş bir paketin iadesi gelir ve paket hiç jeton eklemez, ancak StoreKit bitirilmiş bir paketin iadesini uygulamaya göndermez, bu yüzden o jetonlar defterde kalır. Bu iadeyi yalnızca sunucu, bir `REFUND` App Store Server Notification ile öğrenir; değer taşıyan her şey için doğruluk kaynağı sunucudur.
 
 ### Satın alma işlemini yönetme
 

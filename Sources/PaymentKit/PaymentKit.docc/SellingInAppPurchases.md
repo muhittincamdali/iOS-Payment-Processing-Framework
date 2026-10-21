@@ -46,7 +46,8 @@ StoreKit sends, or from the unfinished transactions at launch, takes the same pa
    ``TransactionChange/revoked(_:)`` for a refund. Send ``StoreTransaction/signedTransaction`` to
    your server there.
 3. A consumable defined with a credit is credited to the ``ConsumableLedger``, or taken back
-   for a refund.
+   for a refund. StoreKit sends a consumable's refund only while its transaction is unfinished
+   (see "Refunds, repeats and restarts").
 4. Only after both succeed is the transaction finished. If either throws, the transaction stays
    unfinished and StoreKit sends it again on the next ``Store/start()``.
 5. ``Store/entitlements`` is recomputed from StoreKit's current entitlements. For a refund it
@@ -74,11 +75,21 @@ however often StoreKit sends it, and saves the balance together with the list of
 transactions in one atomic write. If the app stops after the credit and before `finish()`,
 StoreKit sends the transaction again on the next launch and the ledger credits nothing.
 
-A refund takes the credit back once, even if the coins were spent; the balance can then be
-below zero, and ``Store/spend(_:of:)`` refuses until it is positive again. Decide what else that
-means in your app. The ledger takes back the balance and amount it recorded for the purchase, so
-a refund still counts after an app update removed the product from the catalog, left it to
-`deliver` or changed its credit.
+A refund that reaches the app takes the credit back once, even if the coins were spent; the
+balance can then be below zero, and ``Store/spend(_:of:)`` refuses until it is positive again.
+Decide what else that means in your app. The ledger takes back the balance and amount it
+recorded for the purchase, so a refund still counts after an app update removed the product from
+the catalog, left it to `deliver` or changed its credit.
+
+StoreKit sends the refund of a consumable only while its transaction is unfinished, for example
+because its delivery failed; the ledger then takes back what the purchase credited, or keeps it
+from crediting anything. Once the transaction is finished, the refund does not reach the app: neither the updates nor the unfinished
+transactions carry it, also not after a relaunch. This was observed with StoreKit testing in
+Xcode 27.1, also with `SKIncludeConsumableInAppPurchaseHistory`, and PaymentLab's
+`StoreKitEndToEndTests` check it. Coins that were credited and then refunded therefore stay in
+the ledger on the device. The App Store tells your server, with a `REFUND` App Store Server
+Notification, so the server is the only reliable record of refunded coins: keep balances that
+matter there, as the example receipt server does, and show the server's balance in the app.
 
 Your `deliver` closure runs at least once per transaction, so whatever it does must accept
 repeats; the example receipt server keys everything on the transaction identifier.

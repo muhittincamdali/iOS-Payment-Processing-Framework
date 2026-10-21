@@ -1,4 +1,4 @@
-<!-- i18n-source: README.md@1b83c426fe60ecc12a9cbc423b99c738c04630fe status=reviewed -->
+<!-- i18n-source: README.md@f9a69a80d1ecc14e285680c13d281ae25fadca12 status=reviewed -->
 <!-- brand:start -->
 
 <p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/muhittincamdali/iOS-Payment-Processing-Framework/master/.github/brand/banner-dark.svg"><source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/muhittincamdali/iOS-Payment-Processing-Framework/master/.github/brand/banner-light.svg"><img src="https://raw.githubusercontent.com/muhittincamdali/iOS-Payment-Processing-Framework/master/.github/brand/banner-light.svg" alt="PaymentKit: Sell in-app purchases with StoreKit 2, take Apple Pay and keep money exact on Apple platforms."></picture></p>
@@ -137,7 +137,7 @@ func makeStore(server: URL) -> Store {
 
 `store.hasEntitlement("pro")`는 지금 Pro가 잠금 해제되어 있는지 알려 줍니다. 이 값은 변경이 있을 때마다 StoreKit이 검증한 트랜잭션으로부터 다시 계산되므로, 환불, 만료, 업그레이드가 있으면 접근 권한이 회수되며 값을 누적해서 만들지 않습니다. StoreKit이 검증하지 못한 트랜잭션은 전달되지도, 완료되지도 않습니다.
 
-코인은 StoreKit이 같은 트랜잭션을 몇 번 보내더라도 `ConsumableLedger`가 트랜잭션당 한 번만 지급하며, 환불도 한 번만 되돌립니다(이미 사용했다면 잔액이 0보다 작아질 수 있습니다). 코인은 `try await store.spend(30, of: "coins")`로 사용합니다. 원장은 기기에 있으므로, 가치가 있는 것은 서버를 기준으로 삼아야 합니다.
+코인은 StoreKit이 같은 트랜잭션을 몇 번 보내더라도 `ConsumableLedger`가 트랜잭션당 한 번만 지급합니다. 코인은 `try await store.spend(30, of: "coins")`로 사용합니다. 원장은 기기에 있고 StoreKit이 보내는 환불만 볼 수 있습니다. 아직 완료되지 않은 팩의 환불은 도착하며 그 팩은 아무것도 지급하지 않지만, 완료된 팩의 환불은 StoreKit이 앱에 보내지 않으므로 그 코인은 원장에 남습니다. 그 환불은 서버만 `REFUND` App Store Server Notification으로 알게 되므로, 가치가 있는 것은 서버를 기준으로 삼아야 합니다.
 
 ### 구매 처리하기
 

@@ -165,9 +165,11 @@ access away; it is never added up. Transactions StoreKit cannot verify are never
 finished.
 
 Coins are credited by a `ConsumableLedger` once per transaction, however often StoreKit sends
-it, and a refund takes them back once (the balance can go below zero if they were spent).
-Spend them with `try await store.spend(30, of: "coins")`. The ledger is on the device; for
-anything of value, the server is the source of truth.
+it. Spend them with `try await store.spend(30, of: "coins")`. The ledger is on the device and
+sees only the refunds StoreKit sends: the refund of a pack that is not finished yet arrives, and
+the pack credits nothing, but StoreKit does not send the refund of a finished pack to the app, so
+those coins stay in the ledger. Only the server learns of that refund, from a `REFUND` App Store
+Server Notification; for anything of value, the server is the source of truth.
 
 ### Handling a purchase
 

@@ -43,8 +43,9 @@ server before StoreKit finishes it, and the Store tab shows the server's answer.
 ### Tests
 
 `PaymentLabTests` run PaymentKit's `Store` against real StoreKit through `SKTestSession`:
-products and prices, a subscription, coins, a refund, Ask to Buy, and an expiry and a Billing
-Grace Period under an accelerated clock. With the receipt server running, one more test checks
+products and prices, a subscription, coins, refunds of Pro and of coins, Ask to Buy, and an
+expiry and a Billing Grace Period under an accelerated clock. The coins tests show that StoreKit
+sends the refund of a pack only while the pack is unfinished. With the receipt server running, one more test checks
 that the server verified the purchase. `PaymentLabUITests` drive the three tabs, including the
 Apple Pay sheet.
 

@@ -1,4 +1,4 @@
-<!-- i18n-source: README.md@1b83c426fe60ecc12a9cbc423b99c738c04630fe status=reviewed -->
+<!-- i18n-source: README.md@f9a69a80d1ecc14e285680c13d281ae25fadca12 status=reviewed -->
 <!-- brand:start -->
 
 <p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/muhittincamdali/iOS-Payment-Processing-Framework/master/.github/brand/banner-dark.svg"><source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/muhittincamdali/iOS-Payment-Processing-Framework/master/.github/brand/banner-light.svg"><img src="https://raw.githubusercontent.com/muhittincamdali/iOS-Payment-Processing-Framework/master/.github/brand/banner-light.svg" alt="PaymentKit: Sell in-app purchases with StoreKit 2, take Apple Pay and keep money exact on Apple platforms."></picture></p>
@@ -137,7 +137,7 @@ func makeStore(server: URL) -> Store {
 
 `store.hasEntitlement("pro")` responde se o Pro está desbloqueado agora. Ele é recalculado a partir das transações verificadas do StoreKit depois de cada mudança, então um reembolso, uma expiração ou um upgrade retiram o acesso; o valor nunca é acumulado. Transações que o StoreKit não consegue verificar nunca são entregues nem finalizadas.
 
-As moedas são creditadas por um `ConsumableLedger` uma vez por transação, por mais vezes que o StoreKit a envie, e um reembolso as retira uma única vez (o saldo pode ficar abaixo de zero se elas já tiverem sido gastas). Gaste-as com `try await store.spend(30, of: "coins")`. O livro-razão fica no dispositivo; para qualquer coisa de valor, a fonte da verdade é o servidor.
+As moedas são creditadas por um `ConsumableLedger` uma vez por transação, por mais vezes que o StoreKit a envie. Gaste-as com `try await store.spend(30, of: "coins")`. O livro-razão fica no dispositivo e só vê os reembolsos que o StoreKit envia: o reembolso de um pacote ainda não finalizado chega, e o pacote não credita nada, mas o StoreKit não envia ao app o reembolso de um pacote finalizado, então essas moedas ficam no livro-razão. Só o servidor fica sabendo desse reembolso, por uma App Store Server Notification `REFUND`; para qualquer coisa de valor, a fonte da verdade é o servidor.
 
 ### Tratando uma compra
 
