@@ -175,6 +175,43 @@ describe("ledger", () => {
         assert.deepEqual(ledger.entitlements(account, now), []);
     });
 
+    test("a grace period never ends a renewed period early", () => {
+        const day = 86_400_000;
+        const ledger = new Ledger();
+        const failed = tx({
+            productId: "pro.monthly",
+            expiresDate: now,
+            signedDate: now - 30 * day,
+        });
+        const original = failed.originalTransactionId;
+        ledger.record(failed);
+        ledger.recordRenewal(account, {
+            originalTransactionId: original,
+            gracePeriodExpiresDate: now + 16 * day,
+            signedDate: now + 1,
+        });
+
+        // The payment goes through during the grace period and the device posts the renewal
+        // before Apple's next renewal information arrives: the stored grace period is stale.
+        const renewed = tx({
+            productId: "pro.monthly",
+            originalTransactionId: original,
+            purchaseDate: now + 3 * day,
+            expiresDate: now + 30 * day,
+            signedDate: now + 3 * day,
+        });
+        ledger.record(renewed);
+        for (const at of [now + 5 * day, now + 20 * day]) {
+            assert.deepEqual(
+                ledger
+                    .entitlements(account, at)
+                    .map((e) => [e.transactionId, e.expiresDate]),
+                [[renewed.transactionId, now + 30 * day]],
+            );
+        }
+        assert.deepEqual(ledger.entitlements(account, now + 30 * day), []);
+    });
+
     test("a grace period never gives access to a refunded period or to another subscription", () => {
         const day = 86_400_000;
         const ledger = new Ledger();

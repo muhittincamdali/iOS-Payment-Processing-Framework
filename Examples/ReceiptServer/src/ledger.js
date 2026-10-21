@@ -179,7 +179,9 @@ export class Ledger {
                 if (typeof transaction.expiresDate !== "number") continue;
                 expiresDate = transaction.expiresDate;
                 // A grace period extends only the subscription's latest period: the one whose
-                // renewal failed.
+                // renewal failed. It never shortens it: the stored grace period is stale once a
+                // renewal paid for a period that ends later, until Apple's next renewal
+                // information replaces it.
                 const original = transaction.originalTransactionId;
                 const grace =
                     entry.renewals.get(original)?.gracePeriodExpiresDate;
@@ -187,7 +189,7 @@ export class Ledger {
                     latest.get(original) === transaction &&
                     typeof grace === "number"
                 )
-                    expiresDate = grace;
+                    expiresDate = Math.max(expiresDate, grace);
                 if (expiresDate <= now) continue;
             }
             const candidate = {
