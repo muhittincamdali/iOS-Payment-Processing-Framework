@@ -32,7 +32,8 @@ import Observation
 ///
 /// A refund or revocation is final while the store runs: a copy of the same transaction without
 /// a revocation date that arrives after it, because StoreKit read it before the refund, is not
-/// delivered, credited or finished, and grants no access even while StoreKit still lists it.
+/// delivered, credited or finished, and grants no access even while StoreKit still lists it. A
+/// copy whose delivery was under way when the refund arrived is neither credited nor finished.
 @MainActor
 @Observable
 public final class Store {
@@ -309,10 +310,20 @@ public final class Store {
         }
         let change = TransactionChange(transaction)
         try await deliver?(change)
+        // A refund can arrive while this copy is delivered or credited. Its delivery may have
+        // failed, so the refund waits unfinished: crediting this copy would keep the coins, and
+        // finishing it would finish the refund, which StoreKit finishes by identifier.
+        guard !wasRevokedMeanwhile(key) else { return }
         try await applyCredit(of: change)
+        guard !wasRevokedMeanwhile(key) else { return }
         await client.finish(transaction)
         handled.insert(key)
         await refreshEntitlements()
+    }
+
+    /// Whether a refund of this purchase was seen after its handling started.
+    private func wasRevokedMeanwhile(_ key: TransactionKey) -> Bool {
+        !key.isRevoked && revokedIDs.contains(key.id)
     }
 
     /// Credits a consumable purchase to the ledger, or takes a refunded one back.

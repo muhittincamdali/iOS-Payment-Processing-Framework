@@ -87,6 +87,58 @@ struct RevocationTests {
         #expect(!store.hasEntitlement("pro"))
         store.stop()
     }
+
+    @Test("a purchase refunded while it is being delivered is neither credited nor finished when its delivery returns")
+    func refundDuringDelivery() async throws {
+        let clock = clock
+        let appStore = TestStoreClient(products: Fixtures.products) { clock.now }
+        let recorder = recorder
+        let gate = DeliveryGate()
+        let store = Store(catalog: Fixtures.catalog, client: appStore, ledger: ConsumableLedger(fileURL: nil), now: { clock.now }) { change in
+            if case .granted = change { await gate.wait() } // the receipt server is slow
+            try recorder.deliver(change)
+        }
+        await store.start()
+        let purchasing = Task { try await store.purchase(Fixtures.coins) }
+        #expect(await eventually { await gate.isWaiting })
+        let pack = try #require(await appStore.unfinishedTransactions().first?.transaction)
+
+        recorder.setFailing(true) // the refund cannot reach the server
+        let refunded = try await appStore.refund(pack.id)
+        #expect(await eventually { store.lastError == .deliveryFailed(transactionID: pack.id, reason: "The wallet service is offline.") })
+        recorder.setFailing(false)
+        await gate.open() // the purchase's delivery returns after the refund was handled
+        _ = try await purchasing.value
+
+        #expect(store.balance(of: "coins") == 0, "the refunded pack must not be credited")
+        #expect(await appStore.finishedTransactionIDs.isEmpty, "finishing the purchase would finish the refund")
+        #expect(await appStore.unfinishedTransactions().map(\.transaction) == [refunded])
+
+        try await appStore.redeliver(pack.id) // StoreKit sends the refund again
+        #expect(await eventually { await appStore.finishedTransactionIDs == [pack.id] })
+        #expect(recorder.changes == [.granted(pack), .revoked(refunded)])
+        #expect(store.balance(of: "coins") == 0)
+        store.stop()
+    }
+}
+
+/// Holds a delivery until the test opens it.
+actor DeliveryGate {
+    private var isOpen = false
+    private var waiters: [CheckedContinuation<Void, Never>] = []
+
+    var isWaiting: Bool { !waiters.isEmpty }
+
+    func wait() async {
+        guard !isOpen else { return }
+        await withCheckedContinuation { waiters.append($0) }
+    }
+
+    func open() {
+        isOpen = true
+        waiters.forEach { $0.resume() }
+        waiters.removeAll()
+    }
 }
 
 /// A client whose updates and entitlements the test sets by hand, so copies of one transaction

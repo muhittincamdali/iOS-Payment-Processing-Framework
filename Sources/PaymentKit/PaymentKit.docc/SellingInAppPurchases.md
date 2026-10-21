@@ -65,6 +65,9 @@ A refund or revocation is final while the store runs. StoreKit can hand over a c
 read before the refund after the refund itself, for example as an unfinished transaction at
 launch; that copy has no revocation date, but it is not delivered, credited or finished, and the
 transaction grants no access even while StoreKit's list of current entitlements still has it.
+The same holds for a copy whose delivery was under way when the refund arrived: once `deliver`
+returns, the copy is neither credited nor finished, because StoreKit finishes a transaction by
+its identifier and finishing the copy would finish a refund whose delivery failed.
 
 Coins are different, because they are counted. The ledger credits each transaction once,
 however often StoreKit sends it, and saves the balance together with the list of handled

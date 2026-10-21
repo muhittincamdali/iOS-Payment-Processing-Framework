@@ -90,7 +90,9 @@ results; they are removed (see "Removed").
   and validated when read.
 - A refund or revocation is final while a `Store` runs: a copy of the same transaction from
   before the refund that arrives after it is not delivered, credited or finished, and grants no
-  access even while StoreKit still lists it.
+  access even while StoreKit still lists it. A copy whose delivery was under way when the refund
+  arrived is neither credited nor finished once `deliver` returns, so the refund stays unfinished
+  until it is delivered.
 - A refund ends access before it is delivered: when `deliver` throws, for example because the
   server cannot be reached, the refund stays unfinished and is delivered later, but the refunded
   purchase grants nothing meanwhile.
