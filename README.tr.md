@@ -1,4 +1,4 @@
-<!-- i18n-source: README.md@ee71fbf6fb030e9bf7a2312c9fafe86ddc13c391 status=reviewed -->
+<!-- i18n-source: README.md@1b83c426fe60ecc12a9cbc423b99c738c04630fe status=reviewed -->
 <!-- brand:start -->
 
 <p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/muhittincamdali/iOS-Payment-Processing-Framework/master/.github/brand/banner-dark.svg"><source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/muhittincamdali/iOS-Payment-Processing-Framework/master/.github/brand/banner-light.svg"><img src="https://raw.githubusercontent.com/muhittincamdali/iOS-Payment-Processing-Framework/master/.github/brand/banner-light.svg" alt="PaymentKit: Sell in-app purchases with StoreKit 2, take Apple Pay and keep money exact on Apple platforms."></picture></p>
@@ -35,7 +35,7 @@ PaymentKit, Apple platformlarındaki uygulamaların ödeme kodu için bir Swift 
 - **Kuruşu kuruşuna para** — `Money`, bir ISO 4217 para biriminin en küçük birimlerini saklar; fazla ondalık basamak, `NaN`, taşma ve karışık para birimleri yuvarlama ya da çökme yerine hata fırlatır; paylaştırmalarda tek kuruş kaybolmaz.
 - **Denetlenen Apple Pay istekleri** — `ApplePayRequest`, satıcıyı, para birimini, etiketleri ve toplamları PassKit görmeden önce doğrular; `ApplePayController` ödemeyi async/await ile bildirir.
 - **Sızmayan kart bilgileri** — `CardNumber`, `CardSecurityCode` ve `CardForm` girdiyi (marka, uzunluk, Luhn, son kullanma tarihi) doğrular; log'larda, `dump` çıktısında ve hata ayıklayıcıda `•••• 4242` olarak yazdırılır.
-- **Uçtan uca test edilmiş** — macOS'ta ve bir iPhone simülatöründe 129 Swift Testing testi, örnek uygulamada 8 StoreKit testi ve 4 UI testi (Xcode üzerinden gerçek StoreKit, gerçek Apple Pay sayfası) ve makbuz sunucusu için 37 test.
+- **Uçtan uca test edilmiş** — macOS'ta ve bir iPhone simülatöründe 130 Swift Testing testi, örnek uygulamada 8 StoreKit testi ve 4 UI testi (Xcode üzerinden gerçek StoreKit, gerçek Apple Pay sayfası) ve makbuz sunucusu için 38 test.
 
 ## Hızlı başlangıç
 

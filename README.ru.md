@@ -1,4 +1,4 @@
-<!-- i18n-source: README.md@ee71fbf6fb030e9bf7a2312c9fafe86ddc13c391 status=reviewed -->
+<!-- i18n-source: README.md@1b83c426fe60ecc12a9cbc423b99c738c04630fe status=reviewed -->
 <!-- brand:start -->
 
 <p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/muhittincamdali/iOS-Payment-Processing-Framework/master/.github/brand/banner-dark.svg"><source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/muhittincamdali/iOS-Payment-Processing-Framework/master/.github/brand/banner-light.svg"><img src="https://raw.githubusercontent.com/muhittincamdali/iOS-Payment-Processing-Framework/master/.github/brand/banner-light.svg" alt="PaymentKit: Sell in-app purchases with StoreKit 2, take Apple Pay and keep money exact on Apple platforms."></picture></p>
@@ -35,7 +35,7 @@ PaymentKit — это Swift-пакет для платёжного кода пр
 - **Точные суммы** — `Money` хранит минимальные единицы валюты по ISO 4217; слишком много знаков после запятой, `NaN`, переполнение и смешанные валюты приводят к ошибке, а не к округлению или падению, а при разделении суммы не теряется ни одного цента.
 - **Проверенные запросы Apple Pay** — `ApplePayRequest` проверяет продавца, валюту, подписи и итоговые суммы до того, как их увидит PassKit, а `ApplePayController` сообщает о платеже через async/await.
 - **Данные карты, которые не утекают** — `CardNumber`, `CardSecurityCode` и `CardForm` проверяют ввод (платёжную систему, длину, алгоритм Луна, срок действия) и выводятся как `•••• 4242` в логах, в `dump` и в отладчике.
-- **Сквозное тестирование** — 129 тестов Swift Testing на macOS и в симуляторе iPhone, 8 тестов StoreKit и 4 UI-теста в примере приложения (настоящий StoreKit через Xcode, настоящий лист Apple Pay) и 37 тестов для сервера квитанций.
+- **Сквозное тестирование** — 130 тестов Swift Testing на macOS и в симуляторе iPhone, 8 тестов StoreKit и 4 UI-теста в примере приложения (настоящий StoreKit через Xcode, настоящий лист Apple Pay) и 38 тестов для сервера квитанций.
 
 ## Быстрый старт
 

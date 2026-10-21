@@ -1,4 +1,4 @@
-<!-- i18n-source: README.md@ee71fbf6fb030e9bf7a2312c9fafe86ddc13c391 status=reviewed -->
+<!-- i18n-source: README.md@1b83c426fe60ecc12a9cbc423b99c738c04630fe status=reviewed -->
 <!-- brand:start -->
 
 <p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/muhittincamdali/iOS-Payment-Processing-Framework/master/.github/brand/banner-dark.svg"><source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/muhittincamdali/iOS-Payment-Processing-Framework/master/.github/brand/banner-light.svg"><img src="https://raw.githubusercontent.com/muhittincamdali/iOS-Payment-Processing-Framework/master/.github/brand/banner-light.svg" alt="PaymentKit: Sell in-app purchases with StoreKit 2, take Apple Pay and keep money exact on Apple platforms."></picture></p>
@@ -35,7 +35,7 @@ PaymentKit ist ein Swift-Paket für den Zahlungscode von Apps auf Apple-Plattfor
 - **Exakte Beträge** — `Money` speichert die kleinste Einheit einer ISO-4217-Währung; zu viele Nachkommastellen, `NaN`, Überlauf und gemischte Währungen werfen einen Fehler, statt zu runden oder abzustürzen, und bei Aufteilungen geht nie ein Cent verloren.
 - **Geprüfte Apple-Pay-Anfragen** — `ApplePayRequest` validiert Händler, Währung, Beschriftungen und Summen, bevor PassKit sie sieht, und `ApplePayController` meldet die Zahlung per async/await.
 - **Kartendaten, die nicht durchsickern** — `CardNumber`, `CardSecurityCode` und `CardForm` validieren Eingaben (Marke, Länge, Luhn, Ablaufdatum) und werden in Logs, bei `dump` und im Debugger als `•••• 4242` ausgegeben.
-- **Durchgängig getestet** — 129 Swift-Testing-Tests unter macOS und in einem iPhone-Simulator, 8 StoreKit-Tests und 4 UI-Tests in der Beispiel-App (echtes StoreKit über Xcode, das echte Apple-Pay-Sheet) sowie 37 Tests für den Receipt-Server.
+- **Durchgängig getestet** — 130 Swift-Testing-Tests unter macOS und in einem iPhone-Simulator, 8 StoreKit-Tests und 4 UI-Tests in der Beispiel-App (echtes StoreKit über Xcode, das echte Apple-Pay-Sheet) sowie 38 Tests für den Receipt-Server.
 
 ## Schnellstart
 

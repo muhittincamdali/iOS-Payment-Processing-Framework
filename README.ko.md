@@ -1,4 +1,4 @@
-<!-- i18n-source: README.md@ee71fbf6fb030e9bf7a2312c9fafe86ddc13c391 status=reviewed -->
+<!-- i18n-source: README.md@1b83c426fe60ecc12a9cbc423b99c738c04630fe status=reviewed -->
 <!-- brand:start -->
 
 <p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/muhittincamdali/iOS-Payment-Processing-Framework/master/.github/brand/banner-dark.svg"><source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/muhittincamdali/iOS-Payment-Processing-Framework/master/.github/brand/banner-light.svg"><img src="https://raw.githubusercontent.com/muhittincamdali/iOS-Payment-Processing-Framework/master/.github/brand/banner-light.svg" alt="PaymentKit: Sell in-app purchases with StoreKit 2, take Apple Pay and keep money exact on Apple platforms."></picture></p>
@@ -35,7 +35,7 @@ PaymentKit은 Apple 플랫폼 앱의 결제 코드를 위한 Swift 패키지입�
 - **정확한 금액** — `Money`는 ISO 4217 통화의 최소 단위로 금액을 저장합니다. 소수 자릿수가 너무 많거나, `NaN`, 오버플로, 서로 다른 통화가 섞이면 반올림하거나 크래시하는 대신 오류를 던지며, 금액을 나눠도 1센트도 사라지지 않습니다.
 - **검증된 Apple Pay 요청** — `ApplePayRequest`는 PassKit이 요청을 받기 전에 판매자, 통화, 레이블, 합계를 검증하고, `ApplePayController`는 결제 결과를 async/await로 알려 줍니다.
 - **유출되지 않는 카드 정보** — `CardNumber`, `CardSecurityCode`, `CardForm`은 입력(브랜드, 길이, Luhn, 유효 기간)을 검증하며, 로그, `dump`, 디버거에서는 `•••• 4242`로 출력됩니다.
-- **엔드 투 엔드 테스트** — macOS와 iPhone 시뮬레이터에서 Swift Testing 테스트 129개, 예제 앱에서 StoreKit 테스트 8개와 UI 테스트 4개(Xcode를 통한 실제 StoreKit과 실제 Apple Pay 시트), 영수증 서버 테스트 37개를 실행합니다.
+- **엔드 투 엔드 테스트** — macOS와 iPhone 시뮬레이터에서 Swift Testing 테스트 130개, 예제 앱에서 StoreKit 테스트 8개와 UI 테스트 4개(Xcode를 통한 실제 StoreKit과 실제 Apple Pay 시트), 영수증 서버 테스트 38개를 실행합니다.
 
 ## 빠른 시작
 
