@@ -59,6 +59,11 @@ granting at once. When two refreshes overlap, a list read earlier never replaces
 later, and ``Store/refreshEntitlements()`` returns only once the entitlements reflect a list read
 after it was called.
 
+A refund or revocation is final while the store runs. StoreKit can hand over a copy of a transaction it
+read before the refund after the refund itself, for example as an unfinished transaction at
+launch; that copy has no revocation date, but it is not delivered, credited or finished, and the
+transaction grants no access even while StoreKit's list of current entitlements still has it.
+
 Coins are different, because they are counted. The ledger credits each transaction once,
 however often StoreKit sends it, and saves the balance together with the list of handled
 transactions in one atomic write. If the app stops after the credit and before `finish()`,

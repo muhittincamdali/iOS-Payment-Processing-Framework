@@ -27,6 +27,10 @@ import Observation
 /// Access is never accumulated: ``entitlements`` is always computed again from StoreKit's
 /// current verified transactions, so a refund, a revocation, an expiry or an upgrade removes it.
 /// A refund reaches `deliver` as ``TransactionChange/revoked(_:)``, never as a new grant.
+///
+/// A refund or revocation is final while the store runs: a copy of the same transaction without
+/// a revocation date that arrives after it, because StoreKit read it before the refund, is not
+/// delivered, credited or finished, and grants no access even while StoreKit still lists it.
 @MainActor
 @Observable
 public final class Store {
@@ -72,6 +76,8 @@ public final class Store {
     @ObservationIgnored private var expiryTask: Task<Void, Never>?
     @ObservationIgnored private var inFlight: Set<TransactionKey> = []
     @ObservationIgnored private var handled = RecentSet<TransactionKey>(capacity: 1_000)
+    /// Transactions seen refunded or revoked; no copy of them grants anything afterwards.
+    @ObservationIgnored private var revokedIDs = RecentSet<UInt64>(capacity: 1_000)
     /// Numbers refreshes in the order they start, so the result of an older refresh never
     /// replaces a newer one.
     @ObservationIgnored private var startedRefreshes: UInt64 = 0
@@ -244,7 +250,9 @@ public final class Store {
         // merely started would return to the caller with the list from before its call.
         guard number > appliedRefresh else { return }
         appliedRefresh = number
-        entitlements = resolver.entitlements(from: events, at: now())
+        // Filtered after the read, so a refund handled while it was reading counts too.
+        let current = events.filter { !revokedIDs.contains($0.transaction.id) }
+        entitlements = resolver.entitlements(from: current, at: now())
         scheduleExpiryRefresh()
     }
 
@@ -274,6 +282,14 @@ public final class Store {
     /// entitlements.
     private func process(_ transaction: StoreTransaction) async throws {
         let key = TransactionKey(transaction)
+        if key.isRevoked {
+            // Recorded before delivery, so a copy from before the refund is refused even while
+            // the refund itself is retried.
+            revokedIDs.insert(transaction.id)
+        } else if revokedIDs.contains(transaction.id) {
+            // Not finished either: finishing it could finish a refund whose delivery failed.
+            return
+        }
         guard !inFlight.contains(key) else { return }
         guard !handled.contains(key) else {
             // Delivered already; a repeat can still carry a new flag such as an upgrade.
