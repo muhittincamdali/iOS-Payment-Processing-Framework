@@ -8,6 +8,16 @@
 // A transaction only moves forward: once a revoked copy is recorded, no other copy of it is
 // recorded again, so a signed purchase kept from before a refund cannot bring the access or the
 // coins back. Otherwise the copy Apple signed later wins.
+//
+// With a `file`, every change is saved before it counts (see ledger-file.js), so this holds
+// across restarts too. Without one, as in tests, the ledger lives only as long as the process.
+import {
+    LedgerFileError,
+    readLedgerFile,
+    writeLedgerFile,
+} from "./ledger-file.js";
+
+export { LedgerFileError };
 
 export const CATALOG = {
     "coins.100": { kind: "consumable", coins: 100 },
@@ -24,15 +34,35 @@ export class Ledger {
     #catalog;
     #maxAccounts;
     #maxTransactions;
+    #file;
 
+    /**
+     * @param {{ catalog?: object, maxAccounts?: number, maxTransactionsPerAccount?: number, file?: string }} [options]
+     *   `file` is the JSON file the ledger is read from and saved to.
+     * @throws {LedgerFileError} when `file` exists but cannot be read as a ledger.
+     */
     constructor({
         catalog = CATALOG,
         maxAccounts = 10_000,
         maxTransactionsPerAccount = 1_000,
+        file,
     } = {}) {
         this.#catalog = catalog;
         this.#maxAccounts = maxAccounts;
         this.#maxTransactions = maxTransactionsPerAccount;
+        this.#file = file ?? null;
+        if (this.#file) this.#accounts = readLedgerFile(this.#file);
+    }
+
+    /** Saves the ledger after a change; when that fails, `undo` reverts the change. */
+    #save(undo) {
+        if (!this.#file) return;
+        try {
+            writeLedgerFile(this.#file, this.#accounts);
+        } catch (error) {
+            undo();
+            throw error;
+        }
     }
 
     isKnownProduct(productId) {
@@ -55,17 +85,18 @@ export class Ledger {
      */
     record(transaction) {
         const account = Ledger.accountOf(transaction);
-        let entry = this.#accounts.get(account);
-        if (!entry) {
-            if (this.#accounts.size >= this.#maxAccounts)
-                throw new LedgerFullError(
-                    "The ledger holds its maximum number of accounts.",
-                );
-            entry = { transactions: new Map(), renewals: new Map() };
-            this.#accounts.set(account, entry);
-        }
+        const existing = this.#accounts.get(account);
+        if (!existing && this.#accounts.size >= this.#maxAccounts)
+            throw new LedgerFullError(
+                "The ledger holds its maximum number of accounts.",
+            );
+        const entry = existing ?? {
+            transactions: new Map(),
+            renewals: new Map(),
+        };
         const { transactions } = entry;
-        const stored = transactions.get(transaction.transactionId);
+        const id = transaction.transactionId;
+        const stored = transactions.get(id);
         const isNew = stored === undefined;
         if (isNew && transactions.size >= this.#maxTransactions) {
             throw new LedgerFullError(
@@ -74,7 +105,8 @@ export class Ledger {
         }
         if (!isNew && !supersedes(transaction, stored))
             return { account, isNew, changed: false };
-        transactions.set(transaction.transactionId, {
+        this.#accounts.set(account, entry);
+        transactions.set(id, {
             transactionId: transaction.transactionId,
             originalTransactionId: transaction.originalTransactionId,
             productId: transaction.productId,
@@ -85,6 +117,11 @@ export class Ledger {
             quantity: clampQuantity(transaction.quantity),
             familyShared: transaction.inAppOwnershipType === "FAMILY_SHARED",
             signedDate: signedDateOf(transaction),
+        });
+        this.#save(() => {
+            if (isNew) transactions.delete(id);
+            else transactions.set(id, stored);
+            if (!existing) this.#accounts.delete(account);
         });
         return { account, isNew, changed: true };
     }
@@ -115,6 +152,10 @@ export class Ledger {
                 ? renewalInfo.gracePeriodExpiresDate
                 : null,
             signedDate,
+        });
+        this.#save(() => {
+            if (stored) entry.renewals.set(originalId, stored);
+            else entry.renewals.delete(originalId);
         });
         return true;
     }

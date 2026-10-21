@@ -90,12 +90,14 @@ Settings come from environment variables:
 | `ROOT_CERTS_DIR` | Folder of trusted root certificates; defaults to [`certs/`](ReceiptServer/certs) with Apple Root CA - G3 |
 | `ONLINE_CHECKS` | `0` turns off the OCSP revocation checks against Apple |
 | `PORT`, `HOST` | Where to listen; defaults to `127.0.0.1:8787` |
+| `LEDGER_FILE` | The JSON file the ledger is saved to; defaults to `ReceiptServer/data/ledger.json` |
 
 A transaction only moves forward: once a refunded or revoked copy is recorded, no other copy of
 that transaction replaces it, so posting the signed purchase from before a refund again brings
-back neither the access nor the coins. A refund counts whenever Apple signed it; any other copy
-replaces the stored one only when Apple signed it later. A reversed refund (`REFUND_REVERSED`)
-does not restore anything; handle that notification yourself if your app should.
+back neither the access nor the coins, also after the server restarts. A refund counts whenever
+Apple signed it; any other copy replaces the stored one only when Apple signed it later. A
+reversed refund (`REFUND_REVERSED`) does not restore anything; handle that notification yourself
+if your app should.
 
 A subscription whose renewal failed keeps its entitlement until its Billing Grace Period ends,
 as on the device. The end comes from `gracePeriodExpiresDate` in the verified renewal information
@@ -105,7 +107,16 @@ when Apple signed it later, so a later status without a grace period ends the ac
 information for another subscription than the notification's transaction is refused. Without a
 grace period, access ends at `expiresDate`, also while Apple retries the payment.
 
-Request bodies are limited to 64 KB, signed values to 16 KB, and the in-memory ledger to 10 000
-accounts with 1 000 transactions each; use a database in production. The tests (`npm test`)
-build a certificate chain shaped like Apple's with `openssl` and check that verified data is
-accepted and forged or foreign data is rejected.
+The ledger is saved to `LEDGER_FILE` before a change counts: every change rewrites the file
+through a temporary file and a rename, and the server reads it when it starts. Apple does not
+send a `REFUND` notification again once the server accepted it, so a ledger kept only in memory
+would forget refunds on a restart and grant the access and the coins of a replayed purchase
+again. A file that cannot be
+read stops the server rather than starting with an empty ledger. To start over, for example after
+deleting transactions in Xcode, stop the server and delete the file. One server process uses one
+file; use a database in production.
+
+Request bodies are limited to 64 KB, signed values to 16 KB, and the ledger to 10 000 accounts
+with 1 000 transactions each. The tests (`npm test`) build a certificate chain shaped like
+Apple's with `openssl` and check that verified data is accepted and forged or foreign data is
+rejected, and they restart the server on the same ledger file.

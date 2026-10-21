@@ -10,6 +10,9 @@ export const ENVIRONMENTS = ["Production", "Sandbox", "Xcode", "LocalTesting"];
 const UNVERIFIABLE = new Set(["Xcode", "LocalTesting"]);
 
 const DEFAULT_CERTS = fileURLToPath(new URL("../certs/", import.meta.url));
+const DEFAULT_LEDGER_FILE = fileURLToPath(
+    new URL("../data/ledger.json", import.meta.url),
+);
 
 export class ConfigError extends Error {}
 
@@ -69,6 +72,8 @@ export function loadConfig(env) {
     const host = env.HOST || "127.0.0.1";
     // OCSP checks need network access to Apple; tests turn them off.
     const onlineChecks = env.ONLINE_CHECKS !== "0";
+    // Refunds must outlive the process, so the ledger is always saved to a file.
+    const ledgerFile = env.LEDGER_FILE || DEFAULT_LEDGER_FILE;
 
     return {
         bundleId,
@@ -78,6 +83,7 @@ export function loadConfig(env) {
         port,
         host,
         onlineChecks,
+        ledgerFile,
     };
 }
 

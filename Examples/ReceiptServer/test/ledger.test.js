@@ -272,6 +272,12 @@ describe("configuration", () => {
         assert.equal(config.host, "127.0.0.1");
         assert.equal(config.onlineChecks, true);
         assert.equal(config.rootCertificates.length, 1); // Apple Root CA - G3
+        assert.match(config.ledgerFile, /ReceiptServer\/data\/ledger\.json$/);
+        assert.equal(
+            loadConfig({ ...base, LEDGER_FILE: "/var/lib/shop/ledger.json" })
+                .ledgerFile,
+            "/var/lib/shop/ledger.json",
+        );
     });
 
     test("unsafe or malformed settings are refused", () => {

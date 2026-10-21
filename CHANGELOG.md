@@ -97,7 +97,8 @@ results; they are removed (see "Removed").
 - The example receipt server keeps a refund: once a revoked copy of a transaction is recorded, no
   other copy replaces it, so posting the signed purchase from before the refund again restores
   neither the access nor the coins. Other copies replace the stored one only when Apple signed
-  them later.
+  them later. Its ledger is saved atomically to `LEDGER_FILE` before a change counts and read at
+  start, so a restart does not forget a refund; a file it cannot read stops the server.
 
 ## [1.0.0] - 2026-02-02
 

@@ -62,10 +62,14 @@ even if the same transaction is sent twice, and limits request bodies to 64 KB.
 
 A transaction there only moves forward. Once a refunded or revoked copy is recorded, no other
 copy of that transaction replaces it, so the signed purchase the device kept from before the
-refund cannot bring the access or the coins back when it is sent again. A refund counts whenever
-Apple signed it, since notifications can arrive out of order; any other copy replaces the stored
-one only when Apple signed it later. A reversed refund (`REFUND_REVERSED`) therefore does not
-restore anything in the example; handle that notification yourself if your app should.
+refund cannot bring the access or the coins back when it is sent again. The server saves its
+ledger to a file before a change counts and reads it when it starts, so this holds across
+restarts: Apple does not send a refund notification again once the server accepted it, and a
+ledger kept only in memory would forget it. Your own server needs the same from its database. A
+refund counts whenever Apple signed it, since notifications can arrive out of order; any other
+copy replaces the stored one only when Apple signed it later. A reversed refund
+(`REFUND_REVERSED`) therefore does not restore anything in the example; handle that
+notification yourself if your app should.
 
 A subscription whose renewal failed keeps its entitlement until its Billing Grace Period ends,
 as ``EntitlementResolver`` does on the device. The server takes the end from
