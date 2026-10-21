@@ -104,8 +104,10 @@ as on the device. The end comes from `gracePeriodExpiresDate` in the verified re
 of a notification such as `DID_FAIL_TO_RENEW` with the `GRACE_PERIOD` subtype, and applies to
 the latest period of that subscription only. Renewal information replaces the stored one only
 when Apple signed it later, so a later status without a grace period ends the access. Renewal
-information for another subscription than the notification's transaction is refused. Without a
-grace period, access ends at `expiresDate`, also while Apple retries the payment.
+information that does not verify or belongs to another subscription than the notification's
+transaction is refused with `422`; the transaction itself is recorded all the same, so a refund
+is never lost to it. Without a grace period, access ends at `expiresDate`, also while Apple
+retries the payment.
 
 The ledger is saved to `LEDGER_FILE` before a change counts: every change rewrites the file
 through a temporary file and a rename, and the server reads it when it starts. Apple does not

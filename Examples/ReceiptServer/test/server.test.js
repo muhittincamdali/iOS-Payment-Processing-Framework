@@ -212,47 +212,77 @@ describe("receipt server in Sandbox, with a test root in place of Apple Root CA 
         assert.deepEqual(await entitlements(), []);
     });
 
-    test("renewal information for another subscription or signed by another chain is refused", async () => {
-        const token = "44444444-6666-4777-8888-999999999999";
-        const period = transaction({
-            productId: "pro.monthly",
-            appAccountToken: token,
-            expiresDate: Date.now() - 3_600_000,
-        });
-        const notify = (renewal, chain) =>
+    test("renewal information for another subscription or signed by another chain is refused, and the transaction beside it still counts", async () => {
+        const notify = (type, signedTransaction, renewal, chain) =>
             post(`${server.url}/v1/notifications`, {
                 signedPayload: signJWS(
-                    notification(
-                        "DID_FAIL_TO_RENEW",
-                        signJWS(period, trusted),
-                        "Sandbox",
-                        {
-                            subtype: "GRACE_PERIOD",
-                            signedRenewalInfo: signJWS(renewal, chain),
-                        },
-                    ),
+                    notification(type, signedTransaction, "Sandbox", {
+                        signedRenewalInfo: signJWS(renewal, chain),
+                    }),
                     trusted,
                 ),
             });
-        const grace = {
-            gracePeriodExpiresDate: Date.now() + 86_400_000,
-        };
+        const summary = async (token) =>
+            (await fetch(`${server.url}/v1/accounts/token:${token}`)).json();
+        const grace = { gracePeriodExpiresDate: Date.now() + 30 * 86_400_000 };
+
+        // No grace period comes from refused renewal information.
+        const expiredToken = "44444444-6666-4777-8888-999999999999";
+        const expired = transaction({
+            productId: "pro.monthly",
+            appAccountToken: expiredToken,
+            expiresDate: Date.now() - 3_600_000,
+        });
+        const signedExpired = signJWS(expired, trusted);
         const foreign = await notify(
+            "DID_FAIL_TO_RENEW",
+            signedExpired,
             renewalInfo({ ...grace, originalTransactionId: "1" }),
             trusted,
         );
         assert.equal(foreign.status, 422);
+        assert.equal(foreign.body.error, "renewal_mismatch");
         const forged = await notify(
+            "DID_FAIL_TO_RENEW",
+            signedExpired,
             renewalInfo({
                 ...grace,
-                originalTransactionId: period.originalTransactionId,
+                originalTransactionId: expired.originalTransactionId,
             }),
             rogue,
         );
         assert.equal(forged.status, 422);
-        // Nothing of either notification was recorded, not even the transaction.
-        const lookup = await fetch(`${server.url}/v1/accounts/token:${token}`);
-        assert.equal(lookup.status, 404);
+        assert.equal(forged.body.error, "verification_failed");
+        assert.deepEqual((await summary(expiredToken)).entitlements, []);
+
+        // A refund is recorded even when the renewal information beside it is refused.
+        const activeToken = "33333333-6666-4777-8888-999999999999";
+        const active = transaction({
+            productId: "pro.monthly",
+            appAccountToken: activeToken,
+        });
+        await post(`${server.url}/v1/transactions`, {
+            signedTransaction: signJWS(active, trusted),
+        });
+        const refund = signJWS(
+            {
+                ...active,
+                revocationDate: Date.now(),
+                signedDate: active.signedDate + 1_000,
+            },
+            trusted,
+        );
+        const refused = await notify(
+            "REFUND",
+            refund,
+            renewalInfo({
+                ...grace,
+                originalTransactionId: active.originalTransactionId,
+            }),
+            rogue,
+        );
+        assert.equal(refused.status, 422);
+        assert.deepEqual((await summary(activeToken)).entitlements, []);
     });
 
     test("data signed by another chain is rejected", async () => {
