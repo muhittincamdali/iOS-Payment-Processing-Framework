@@ -261,6 +261,27 @@ struct MoneyParsingTests {
         }
     }
 
+    // No grouped number starts with 0, so a leading 0 means the separator was typed as a decimal
+    // point; reading it as grouping would charge 100 or 1000 times the amount.
+    @Test("grouped amounts that start with 0 throw", arguments: [
+        ("0,990", "en_US", Currency.usd), ("0.500", "de_DE", .eur), ("0,500", "en_US", .kwd),
+        ("0.050", "tr_TR", .try), ("00,100", "en_US", .usd), ("0,000,500", "en_US", .usd),
+        ("-0,500", "en_US", .usd), ("0 500", "fr_FR", .eur)
+    ])
+    func leadingZeroGroup(text: String, locale: String, currency: Currency) {
+        #expect(throws: MoneyError.invalidText, "\(text) in \(locale)") {
+            try Money(parsing: text, currency: currency, locale: Locale(identifier: locale))
+        }
+    }
+
+    @Test("amounts below one without grouping still parse", arguments: [
+        ("0.99", "en_US", Currency.usd, 99), ("0,50", "de_DE", .eur, 50), ("0.500", "en_US", .kwd, 500),
+        ("0,05", "tr_TR", .try, 5), ("-0.5", "en_US", .usd, -50), ("0", "en_US", .usd, 0)
+    ])
+    func belowOne(text: String, locale: String, currency: Currency, expected: Int64) throws {
+        #expect(try Money(parsing: text, currency: currency, locale: Locale(identifier: locale)).minorUnits == expected)
+    }
+
     @Test("typed text that is not a plain amount throws", arguments: ["$12", "12 USD", "1.2.3", "12abc", "1e5", "", "   "])
     func localizedRejects(text: String) throws {
         #expect(throws: MoneyError.self) { try Money(parsing: text, currency: .usd, locale: Locale(identifier: "en_US")) }

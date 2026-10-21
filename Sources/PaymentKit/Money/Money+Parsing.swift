@@ -22,12 +22,13 @@ extension Money {
     ///
     /// Spaces around the number are ignored. Grouping separators (the locale's own, spaces and
     /// apostrophes) are accepted only where they group digits: before the decimal separator,
-    /// with three digits after the last one and two or three between the others, as in
-    /// `1,234,567` or the Indian `12,34,567`. So `"12,50"` in the United States or `"0.99"` in
-    /// Germany, where the separator was meant as a decimal point, throws instead of becoming 100
-    /// times larger. Currency symbols, letters, exponents and a second decimal separator throw
-    /// too. An amount with more decimals than the currency has throws instead of being rounded,
-    /// so `"10.999"` dollars is reported to the person rather than charged as `11.00`.
+    /// with three digits after the last one and two or three between the others, and not after a
+    /// leading `0`, as in `1,234,567` or the Indian `12,34,567`. So `"12,50"` in the United
+    /// States or `"0.99"` and `"0.500"` in Germany, where the separator was meant as a decimal
+    /// point, throws instead of becoming 100 or 1000 times larger. Currency symbols, letters,
+    /// exponents and a second decimal separator throw too. An amount with more decimals than the
+    /// currency has throws instead of being rounded, so `"10.999"` dollars is reported to the
+    /// person rather than charged as `11.00`.
     ///
     /// - Throws: ``MoneyError/invalidText``, ``MoneyError/tooManyFractionDigits(currency:)`` or
     ///   ``MoneyError/outOfRange``.
@@ -71,11 +72,14 @@ extension Money {
         return sign + groups.joined() + (fraction.map { ".\($0)" } ?? "")
     }
 
-    // "12,50" in en_US or "0.99" in de_DE is a decimal typed with the wrong separator; reading
-    // the separator as grouping would charge 100 times the amount.
+    // "12,50" in en_US or "0.99" and "0.500" in de_DE are decimals typed with the wrong
+    // separator; reading the separator as grouping would charge 100 or 1000 times the amount.
+    // No grouped number starts with 0, so a first group that does is never grouping.
     private static func hasDigitGroups(_ groups: [String]) -> Bool {
         guard groups.count > 1 else { return true }
-        guard (1...3).contains(groups[0].count), groups[groups.count - 1].count == 3 else { return false }
+        guard (1...3).contains(groups[0].count), groups[0].first != "0",
+              groups[groups.count - 1].count == 3
+        else { return false }
         return groups.dropFirst().dropLast().allSatisfy { (2...3).contains($0.count) }
     }
 

@@ -44,7 +44,9 @@ crashing:
 - text that is not a plain number: symbols, letters, exponents, a second decimal separator, or
   more than ``Money/maximumTextLength`` characters;
 - typed text with a grouping separator that does not group digits, such as `12,50` in the
-  United States or `0.99` in Germany, which would otherwise become 100 times the amount.
+  United States or `0.99` in Germany, or that follows a leading `0`, such as `0,990` in the
+  United States or `0.500` in Germany, which would otherwise become 100 or 1000 times the
+  amount.
 
 ### Split without losing a cent
 
