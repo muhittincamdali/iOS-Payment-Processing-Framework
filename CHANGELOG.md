@@ -82,6 +82,10 @@ results; they are removed (see "Removed").
 - Consumables cannot be credited twice: repeats, a restart between crediting and `finish()`, and
   a refund that arrives before its purchase are handled by the ledger, whose file is size-checked
   and validated when read.
+- The example receipt server keeps a refund: once a revoked copy of a transaction is recorded, no
+  other copy replaces it, so posting the signed purchase from before the refund again restores
+  neither the access nor the coins. Other copies replace the stored one only when Apple signed
+  them later.
 
 ## [1.0.0] - 2026-02-02
 

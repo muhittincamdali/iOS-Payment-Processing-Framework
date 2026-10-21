@@ -91,6 +91,12 @@ Settings come from environment variables:
 | `ONLINE_CHECKS` | `0` turns off the OCSP revocation checks against Apple |
 | `PORT`, `HOST` | Where to listen; defaults to `127.0.0.1:8787` |
 
+A transaction only moves forward: once a refunded or revoked copy is recorded, no other copy of
+that transaction replaces it, so posting the signed purchase from before a refund again brings
+back neither the access nor the coins. A refund counts whenever Apple signed it; any other copy
+replaces the stored one only when Apple signed it later. A reversed refund (`REFUND_REVERSED`)
+does not restore anything; handle that notification yourself if your app should.
+
 Request bodies are limited to 64 KB, signed values to 16 KB, and the in-memory ledger to 10 000
 accounts with 1 000 transactions each; use a database in production. The tests (`npm test`)
 build a certificate chain shaped like Apple's with `openssl` and check that verified data is

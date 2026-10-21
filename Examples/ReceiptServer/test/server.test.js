@@ -111,6 +111,52 @@ describe("receipt server in Sandbox, with a test root in place of Apple Root CA 
         assert.deepEqual(summary.entitlements, []);
     });
 
+    test("the signed purchase from before a refund cannot bring back what the refund removed", async () => {
+        const token = "77777777-8888-4777-8666-555555555555";
+        const purchases = [
+            transaction({
+                productId: "pro.lifetime",
+                type: "Non-Consumable",
+                expiresDate: undefined,
+                appAccountToken: token,
+            }),
+            transaction({
+                productId: "coins.100",
+                type: "Consumable",
+                expiresDate: undefined,
+                appAccountToken: token,
+            }),
+        ];
+        const signed = purchases.map((purchase) => signJWS(purchase, trusted));
+        for (const signedTransaction of signed)
+            await post(`${server.url}/v1/transactions`, { signedTransaction });
+        for (const purchase of purchases) {
+            const refund = signJWS(
+                {
+                    ...purchase,
+                    revocationDate: Date.now(),
+                    revocationReason: 0,
+                    signedDate: purchase.signedDate + 1_000,
+                },
+                trusted,
+            );
+            const { status } = await post(`${server.url}/v1/notifications`, {
+                signedPayload: signJWS(notification("REFUND", refund), trusted),
+            });
+            assert.equal(status, 200);
+        }
+
+        for (const signedTransaction of signed) {
+            const { status, body } = await post(
+                `${server.url}/v1/transactions`,
+                { signedTransaction },
+            );
+            assert.equal(status, 200);
+            assert.deepEqual(body.entitlements, []);
+            assert.equal(body.coins, 0);
+        }
+    });
+
     test("data signed by another chain is rejected", async () => {
         const { status, body } = await post(`${server.url}/v1/transactions`, {
             signedTransaction: signJWS(transaction(), rogue),

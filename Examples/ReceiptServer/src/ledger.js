@@ -3,6 +3,10 @@
 // The rules match PaymentKit's EntitlementResolver on the device: refunded and upgraded
 // transactions grant nothing, subscriptions last until their expiration date, non-consumables
 // for good, and a lifetime purchase wins over a subscription.
+//
+// A transaction only moves forward: once a revoked copy is recorded, no other copy of it is
+// recorded again, so a signed purchase kept from before a refund cannot bring the access or the
+// coins back. Otherwise the copy Apple signed later wins.
 
 export const CATALOG = {
     "coins.100": { kind: "consumable", coins: 100 },
@@ -41,10 +45,11 @@ export class Ledger {
     }
 
     /**
-     * Records a verified, decoded transaction. Recording the same transaction again replaces it,
-     * so a refund updates the purchase instead of adding a second one, and coins are never
-     * credited twice.
-     * @returns {{ account: string, isNew: boolean }}
+     * Records a verified, decoded transaction. A copy of a recorded transaction replaces it only
+     * when it moves the transaction forward (see `supersedes`), so a refund updates the purchase
+     * instead of adding a second one, coins are never credited twice, and replaying an older
+     * copy changes nothing.
+     * @returns {{ account: string, isNew: boolean, changed: boolean }}
      */
     record(transaction) {
         const account = Ledger.accountOf(transaction);
@@ -57,12 +62,15 @@ export class Ledger {
             transactions = new Map();
             this.#accounts.set(account, transactions);
         }
-        const isNew = !transactions.has(transaction.transactionId);
+        const stored = transactions.get(transaction.transactionId);
+        const isNew = stored === undefined;
         if (isNew && transactions.size >= this.#maxTransactions) {
             throw new LedgerFullError(
                 "The account holds its maximum number of transactions.",
             );
         }
+        if (!isNew && !supersedes(transaction, stored))
+            return { account, isNew, changed: false };
         transactions.set(transaction.transactionId, {
             transactionId: transaction.transactionId,
             productId: transaction.productId,
@@ -72,8 +80,9 @@ export class Ledger {
             isUpgraded: transaction.isUpgraded === true,
             quantity: clampQuantity(transaction.quantity),
             familyShared: transaction.inAppOwnershipType === "FAMILY_SHARED",
+            signedDate: signedDateOf(transaction),
         });
-        return { account, isNew };
+        return { account, isNew, changed: true };
     }
 
     /** The account's entitlements at `now` (milliseconds since 1970), sorted by name. */
@@ -83,7 +92,7 @@ export class Ledger {
             const product = this.#catalog[transaction.productId];
             if (
                 !product?.entitlement ||
-                transaction.revocationDate !== undefined ||
+                isRevoked(transaction) ||
                 transaction.isUpgraded
             )
                 continue;
@@ -114,10 +123,7 @@ export class Ledger {
         let total = 0;
         for (const transaction of this.#accounts.get(account)?.values() ?? []) {
             const product = this.#catalog[transaction.productId];
-            if (
-                product?.kind !== "consumable" ||
-                transaction.revocationDate !== undefined
-            )
+            if (product?.kind !== "consumable" || isRevoked(transaction))
                 continue;
             total += product.coins * transaction.quantity;
         }
@@ -127,6 +133,27 @@ export class Ledger {
     has(account) {
         return this.#accounts.has(account);
     }
+}
+
+/**
+ * Whether `incoming` replaces the stored copy of the same transaction. A revocation is final:
+ * nothing replaces a revoked copy, not even one Apple signed later without a revocation date
+ * (as after a reversed refund). A revocation replaces any other copy whenever it was signed,
+ * because notifications can arrive out of order. Any other copy replaces only an older one.
+ */
+function supersedes(incoming, stored) {
+    if (isRevoked(stored)) return false;
+    if (isRevoked(incoming)) return true;
+    return signedDateOf(incoming) > stored.signedDate;
+}
+
+function isRevoked(transaction) {
+    return transaction.revocationDate !== undefined;
+}
+
+// Apple signs every transaction with a signedDate; a payload without one counts as the oldest.
+function signedDateOf(transaction) {
+    return Number.isFinite(transaction.signedDate) ? transaction.signedDate : 0;
 }
 
 function isBetter(candidate, current) {

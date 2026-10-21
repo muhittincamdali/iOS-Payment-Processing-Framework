@@ -77,6 +77,61 @@ describe("ledger", () => {
         assert.equal(ledger.coins(account), 0);
     });
 
+    test("a revocation is final: no replayed or later copy undoes it", () => {
+        const ledger = new Ledger();
+        const lifetime = tx({ productId: "pro.lifetime", signedDate: now });
+        const coins = tx({ productId: "coins.100", signedDate: now });
+        for (const purchase of [lifetime, coins]) {
+            ledger.record(purchase);
+            ledger.record({
+                ...purchase,
+                revocationDate: now + 1,
+                signedDate: now + 1,
+            });
+        }
+
+        // The device keeps the copy signed before the refund, and Apple can sign a later copy
+        // without a revocation date, as after a reversed refund.
+        for (const purchase of [lifetime, coins]) {
+            for (const copy of [
+                purchase,
+                { ...purchase, signedDate: now + 9_000 },
+            ])
+                assert.equal(ledger.record(copy).changed, false);
+        }
+        assert.deepEqual(ledger.entitlements(account, now), []);
+        assert.equal(ledger.coins(account), 0);
+    });
+
+    test("a revocation counts whenever it was signed, other copies only when signed later", () => {
+        const ledger = new Ledger();
+        const yearly = tx({
+            productId: "pro.yearly",
+            expiresDate: now + 5_000,
+            signedDate: now,
+        });
+        ledger.record(yearly);
+        const older = { ...yearly, expiresDate: now + 9_000, signedDate: 1 };
+        assert.equal(ledger.record(older).changed, false);
+        assert.equal(ledger.record({ ...yearly }).changed, false);
+        assert.deepEqual(
+            ledger.entitlements(account, now).map((e) => e.expiresDate),
+            [now + 5_000],
+        );
+
+        const upgraded = { ...yearly, isUpgraded: true, signedDate: now + 1 };
+        assert.equal(ledger.record(upgraded).changed, true);
+        ledger.record(yearly); // the copy from before the upgrade
+        assert.deepEqual(ledger.entitlements(account, now), []);
+
+        // A refund that arrives after a copy Apple signed later still takes the coins back.
+        const coins = tx({ productId: "coins.100", signedDate: now + 3_000 });
+        ledger.record(coins);
+        const refund = { ...coins, revocationDate: now, signedDate: now };
+        assert.equal(ledger.record(refund).changed, true);
+        assert.equal(ledger.coins(account), 0);
+    });
+
     test("quantities outside StoreKit limits count as one", () => {
         const ledger = new Ledger();
         for (const quantity of [0, -5, 11, 2.5, 1e308, "3", null])

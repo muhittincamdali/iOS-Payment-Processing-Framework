@@ -60,6 +60,13 @@ answers:
 It checks the bundle identifier and environment of every transaction, credits a consumable once
 even if the same transaction is sent twice, and limits request bodies to 64 KB.
 
+A transaction there only moves forward. Once a refunded or revoked copy is recorded, no other
+copy of that transaction replaces it, so the signed purchase the device kept from before the
+refund cannot bring the access or the coins back when it is sent again. A refund counts whenever
+Apple signed it, since notifications can arrive out of order; any other copy replaces the stored
+one only when Apple signed it later. A reversed refund (`REFUND_REVERSED`) therefore does not
+restore anything in the example; handle that notification yourself if your app should.
+
 ```sh
 cd Examples/ReceiptServer
 npm ci

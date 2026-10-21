@@ -51,9 +51,10 @@ export function createReceiptServer(
                 `The product ${String(transaction.productId).slice(0, 64)} is not sold by this server.`,
             );
         }
-        const { account, isNew } = ledger.record(transaction);
+        const { account, isNew, changed } = ledger.record(transaction);
+        const action = isNew ? "recorded" : changed ? "updated" : "kept";
         log(
-            `${isNew ? "recorded" : "updated"} transaction ${transaction.transactionId} (${transaction.productId}) for ${account}`,
+            `${action} transaction ${transaction.transactionId} (${transaction.productId}) for ${account}`,
         );
         return { account, transaction };
     }
