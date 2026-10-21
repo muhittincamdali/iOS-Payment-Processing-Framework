@@ -35,12 +35,41 @@ struct StoreIntegrityTests {
         try await Task.sleep(for: .milliseconds(50))
         #expect(store.balance(of: "coins") == 300, "a repeated update credits nothing")
 
-        try await client.refund(purchase.id)
+        try await client.refund(purchase.id) // a finished consumable's refund sends no update,
+        try await client.redeliver(purchase.id) // so the test sends the refunded copy
         #expect(await eventually { store.balance(of: "coins") == 0 })
         try await client.redeliver(purchase.id) // the refunded transaction again
         try await Task.sleep(for: .milliseconds(50))
         #expect(store.balance(of: "coins") == 0, "a repeated refund takes back nothing more")
         #expect(recorder.changes.map { if case .granted = $0 { "granted" } else { "revoked" } } == ["granted", "revoked"])
+        store.stop()
+    }
+
+    // As StoreKit does (PaymentLab's StoreKitEndToEndTests check it): the refund of a finished
+    // consumable never reaches the app, only the server's REFUND notification; the refund of
+    // one still unfinished does.
+    @Test("a refund of finished coins does not reach the store, and one of unfinished coins does")
+    func consumableRefundReach() async throws {
+        let store = makeStore()
+        await store.start()
+        guard case .purchased(let finished) = try await store.purchase(Fixtures.coins) else {
+            Issue.record("expected a purchase")
+            return
+        }
+        let refunded = try await client.refund(finished.id)
+        #expect(await client.transactions.first { $0.id == finished.id } == refunded)
+        let later = try await client.purchaseOnAnotherDevice("pro.lifetime") // handled after the refund, had it come
+        #expect(await eventually { await client.finishedTransactionIDs.contains(later.id) })
+        #expect(store.balance(of: "coins") == 100, "the store never hears of this refund")
+
+        recorder.setFailing(true) // the next pack stays unfinished
+        await #expect(throws: StoreError.self) { try await store.purchase(Fixtures.coins) }
+        let unfinished = try #require(await client.unfinishedTransactions().first?.transaction)
+        recorder.setFailing(false)
+        let refundedUnfinished = try await client.refund(unfinished.id)
+        #expect(await eventually { await client.unfinishedTransactionIDs.isEmpty })
+        #expect(store.balance(of: "coins") == 100, "the refunded pack credits nothing")
+        #expect(recorder.changes == [.granted(finished), .granted(later), .revoked(refundedUnfinished)])
         store.stop()
     }
 
@@ -55,6 +84,7 @@ struct StoreIntegrityTests {
         try await store.spend(70, of: "coins")
         #expect(store.balance(of: "coins") == 30)
         try await client.refund(purchase.id)
+        try await client.redeliver(purchase.id) // StoreKit would not send this refund to the app
         #expect(await eventually { store.balance(of: "coins") == -70 })
         await #expect(throws: ConsumableLedger.Failure.insufficientBalance(account: "coins", balance: -70, requested: 1)) {
             try await store.spend(1, of: "coins")
@@ -211,7 +241,7 @@ struct StoreIntegrityTests {
         #expect(store.entitlements.isEmpty)
     }
 
-    @Test("after any order of purchases, repeats, refunds, upgrades and renewals, access and coins match what was paid for and not refunded", arguments: 0..<25)
+    @Test("after any order of purchases, repeats, refunds, upgrades and renewals, access and coins match what was paid for and not refunded to the app", arguments: 0..<25)
     func randomHistories(seed: UInt64) async throws {
         var generator = SeededGenerator(seed: seed)
         let store = makeStore()
@@ -239,9 +269,15 @@ struct StoreIntegrityTests {
 
         let final = await client.transactions
         let date = clock.now
-        let expectedCoins = final
-            .filter { $0.productID == "coins.100" && $0.revocationDate == nil }
-            .reduce(Int64(0)) { $0 + 100 * Int64($1.purchasedQuantity) }
+        // As with StoreKit, the refund of a finished pack never reaches the store, so the coins are
+        // those of every pack less the packs whose refund the store received.
+        let recorder = recorder
+        let expectedCoins = {
+            let refundedHere = Set(recorder.changes.compactMap { if case .revoked(let transaction) = $0 { transaction.id } else { nil } })
+            return final
+                .filter { $0.productID == "coins.100" && !refundedHere.contains($0.id) }
+                .reduce(Int64(0)) { $0 + 100 * Int64($1.purchasedQuantity) }
+        }
         let grantsPro = final.contains { transaction in
             ["pro.monthly", "pro.yearly", "pro.lifetime"].contains(transaction.productID)
                 && transaction.revocationDate == nil && !transaction.isUpgraded
@@ -249,12 +285,12 @@ struct StoreIntegrityTests {
         }
 
         let settled = await eventually {
-            await client.unfinishedTransactionIDs.isEmpty && store.balance(of: "coins") == expectedCoins
+            await client.unfinishedTransactionIDs.isEmpty && store.balance(of: "coins") == expectedCoins()
         }
-        #expect(settled, "seed \(seed): coins \(store.balance(of: "coins")), expected \(expectedCoins)")
+        #expect(settled, "seed \(seed): coins \(store.balance(of: "coins")), expected \(expectedCoins())")
         try await Task.sleep(for: .milliseconds(50))
         await store.refreshEntitlements()
-        #expect(store.balance(of: "coins") == expectedCoins, "seed \(seed)")
+        #expect(store.balance(of: "coins") == expectedCoins(), "seed \(seed)")
         #expect(store.hasEntitlement("pro") == grantsPro, "seed \(seed)")
         for change in recorder.changes {
             if case .granted(let transaction) = change { #expect(transaction.revocationDate == nil) }

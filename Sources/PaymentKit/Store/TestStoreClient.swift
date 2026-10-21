@@ -8,7 +8,8 @@ import Foundation
 /// their period or at the end of a Billing Grace Period
 /// (``startBillingGracePeriod(for:until:)``), refunds set a revocation date, and renewals,
 /// refunds, Ask to Buy approvals and purchases on other devices arrive through
-/// ``transactionUpdates()``. Only one listener receives the updates, as with one `Store`.
+/// ``transactionUpdates()``, except the refund of a finished consumable, which StoreKit does not
+/// send either. Only one listener receives the updates, as with one `Store`.
 ///
 /// ```swift
 /// let client = TestStoreClient(products: [.preview(id: "pro.monthly", kind: .autoRenewable)])
@@ -188,9 +189,16 @@ public actor TestStoreClient: StoreClient {
     /// Refunds a transaction: it gets a revocation date and arrives again as an update. Use it
     /// for a family member's shared purchase too: StoreKit revokes it the same way when Family
     /// Sharing stops.
+    ///
+    /// The refund of a consumable that was already finished gets its revocation date in
+    /// ``transactions`` but sends no update: StoreKit does not tell the app about it, and only
+    /// your server learns of it, from a `REFUND` App Store Server Notification. A consumable
+    /// refunded while it is still unfinished arrives as an update, as with StoreKit.
     @discardableResult
     public func refund(_ transactionID: UInt64) throws -> StoreTransaction {
-        try replace(transactionID) { $0.revoked(at: now()) }
+        let isFinishedConsumable = transactions.contains { $0.id == transactionID && $0.productKind == .consumable }
+            && !unfinishedTransactionIDs.contains(transactionID)
+        return try replace(transactionID, sendingUpdate: !isFinishedConsumable) { $0.revoked(at: now()) }
     }
 
     /// Sends a transaction again as an update, as StoreKit can after a restore or when the app
@@ -223,13 +231,19 @@ public actor TestStoreClient: StoreClient {
     }
 
     @discardableResult
-    private func replace(_ transactionID: UInt64, _ change: (StoreTransaction) -> StoreTransaction) throws -> StoreTransaction {
+    private func replace(
+        _ transactionID: UInt64,
+        sendingUpdate: Bool = true,
+        _ change: (StoreTransaction) -> StoreTransaction
+    ) throws -> StoreTransaction {
         guard let index = transactions.firstIndex(where: { $0.id == transactionID }) else {
             throw StoreError.productNotFound(String(transactionID))
         }
         let changed = change(transactions[index])
         transactions[index] = changed
-        continuation.yield(event(for: changed))
+        if sendingUpdate {
+            continuation.yield(event(for: changed))
+        }
         return changed
     }
 

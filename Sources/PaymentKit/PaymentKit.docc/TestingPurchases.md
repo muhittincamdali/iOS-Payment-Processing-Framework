@@ -38,7 +38,9 @@ func refundRemovesPro() async throws -> Bool {
   current entitlements past its expiration date until the grace period ends, as StoreKit lists
   it;
 - refund a transaction or revoke a family member's shared purchase
-  (``TestStoreClient/refund(_:)``), move a subscriber to a higher plan
+  (``TestStoreClient/refund(_:)``). As with StoreKit, the refund of a consumable that was
+  already finished sends no update; the refund of an unfinished one does;
+- move a subscriber to a higher plan
   (``TestStoreClient/upgrade(from:to:)``), share a purchase from a family member
   (``TestStoreClient/shareFromFamily(_:)``) or send a transaction again
   (``TestStoreClient/redeliver(_:)``), to check that repeats and refunds never grant twice;
@@ -65,7 +67,8 @@ let store = Store(
 ```
 
 PaymentKit's own tests replay random histories of purchases, repeats, refunds, upgrades and
-renewals and check that the coins and access always equal what was paid for and not refunded.
+renewals and check that access always equals what was paid for and not refunded, and that the
+coins equal what was paid for less the refunds the store received.
 
 ### StoreKit testing in Xcode
 

@@ -30,7 +30,8 @@ results; they are removed (see "Removed").
 - `StoreClient` with `AppStoreClient` (StoreKit 2, `purchase(confirmIn:)` on visionOS) and
   `TestStoreClient`, an in-memory App Store for tests and previews that simulates Ask to Buy,
   renewals, refunds, upgrades, Family Sharing, repeated deliveries, purchases on other devices,
-  failed renewals with a Billing Grace Period and unverified updates.
+  failed renewals with a Billing Grace Period and unverified updates. Like StoreKit, it sends no
+  update for the refund of a consumable that was already finished.
 - Billing Grace Period: `AppStoreClient` reads each listed subscription's verified renewal
   status, `StoreTransaction.gracePeriodExpirationDate` holds the end of a grace period, and
   `EntitlementResolver` grants access until then. A subscription whose status is billing retry,
