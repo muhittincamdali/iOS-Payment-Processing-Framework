@@ -50,7 +50,9 @@ results; they are removed (see "Removed").
 - watchOS 10 and visionOS 1 support next to iOS 17 and macOS 14.
 - Example app `Examples/PaymentLab` with StoreKit tests through `SKTestSession` and UI tests that
   include the Apple Pay sheet; `Examples/ReceiptServer`, a Node 24 server that verifies
-  transactions and App Store Server Notifications with Apple's App Store Server Library.
+  transactions and App Store Server Notifications with Apple's App Store Server Library, and
+  keeps a subscription's entitlement through its Billing Grace Period from the renewal
+  information in notifications.
 - A DocC catalog with seven articles, published to GitHub Pages.
 - `scripts/capture-screenshots.sh`, which produces the README screenshots from the UI tests.
 - 124 Swift Testing tests, run on macOS and an iPhone simulator, including seeded random

@@ -198,14 +198,34 @@ export function transaction(overrides = {}) {
     };
 }
 
-/** An App Store Server Notification V2 payload around a signed transaction. */
+/** Decoded renewal information of a subscription, as Apple signs it. */
+export function renewalInfo(overrides = {}) {
+    const now = Date.now();
+    return {
+        originalTransactionId: "0",
+        autoRenewProductId: "pro.monthly",
+        productId: "pro.monthly",
+        autoRenewStatus: 1,
+        signedDate: now,
+        environment: "Sandbox",
+        renewalDate: now + 30 * 86_400_000,
+        ...overrides,
+    };
+}
+
+/**
+ * An App Store Server Notification V2 payload around a signed transaction; `extra` adds fields
+ * such as `subtype` and `signedRenewalInfo`.
+ */
 export function notification(
     type,
     signedTransactionInfo,
     environment = "Sandbox",
+    { subtype, signedRenewalInfo } = {},
 ) {
     return {
         notificationType: type,
+        ...(subtype ? { subtype } : {}),
         notificationUUID: "0c9a1b52-4b8f-4e43-9d5a-2f0d7f3e8a11",
         version: "2.0",
         signedDate: Date.now(),
@@ -213,6 +233,7 @@ export function notification(
             bundleId: BUNDLE_ID,
             environment,
             signedTransactionInfo,
+            ...(signedRenewalInfo ? { signedRenewalInfo } : {}),
             status: 1,
         },
     };

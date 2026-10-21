@@ -41,7 +41,7 @@ export function createReceiptServer(
         config.appAppleId,
     );
 
-    async function recordTransaction(signedTransaction) {
+    async function verifyTransaction(signedTransaction) {
         const transaction =
             await verifier.verifyAndDecodeTransaction(signedTransaction);
         if (!ledger.isKnownProduct(transaction.productId)) {
@@ -51,12 +51,35 @@ export function createReceiptServer(
                 `The product ${String(transaction.productId).slice(0, 64)} is not sold by this server.`,
             );
         }
+        return transaction;
+    }
+
+    async function recordTransaction(signedTransaction) {
+        return record(await verifyTransaction(signedTransaction));
+    }
+
+    function record(transaction) {
         const { account, isNew, changed } = ledger.record(transaction);
         const action = isNew ? "recorded" : changed ? "updated" : "kept";
         log(
             `${action} transaction ${transaction.transactionId} (${transaction.productId}) for ${account}`,
         );
         return { account, transaction };
+    }
+
+    /** The verified renewal information of the notification's subscription, if it has one. */
+    async function verifyRenewal(signedRenewalInfo, transaction) {
+        if (signedRenewalInfo === undefined) return null;
+        const renewal = await verifier.verifyAndDecodeRenewalInfo(
+            requireJWS(signedRenewalInfo, "signedRenewalInfo"),
+        );
+        if (renewal.originalTransactionId !== transaction.originalTransactionId)
+            throw new HttpError(
+                422,
+                "renewal_mismatch",
+                "The renewal information belongs to another subscription.",
+            );
+        return renewal;
     }
 
     function accountSummary(account) {
@@ -107,9 +130,19 @@ export function createReceiptServer(
             );
             const signedTransaction = notification.data?.signedTransactionInfo;
             if (typeof signedTransaction === "string") {
-                const { account } = await recordTransaction(
+                // Both are verified before anything is recorded.
+                const transaction = await verifyTransaction(
                     requireJWS(signedTransaction, "signedTransactionInfo"),
                 );
+                const renewal = await verifyRenewal(
+                    notification.data.signedRenewalInfo,
+                    transaction,
+                );
+                const { account } = record(transaction);
+                if (renewal && ledger.recordRenewal(account, renewal))
+                    log(
+                        `renewal of ${renewal.originalTransactionId} for ${account}: grace period until ${renewal.gracePeriodExpiresDate ?? "none"}`,
+                    );
                 log(
                     `notification ${notification.notificationType} for ${account}`,
                 );

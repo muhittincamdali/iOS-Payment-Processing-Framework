@@ -1,8 +1,9 @@
 // What each account owns, built only from transactions Apple's library verified.
 //
 // The rules match PaymentKit's EntitlementResolver on the device: refunded and upgraded
-// transactions grant nothing, subscriptions last until their expiration date, non-consumables
-// for good, and a lifetime purchase wins over a subscription.
+// transactions grant nothing, subscriptions last until their expiration date or, in a Billing
+// Grace Period, until the grace period ends, non-consumables for good, and a lifetime purchase
+// wins over a subscription.
 //
 // A transaction only moves forward: once a revoked copy is recorded, no other copy of it is
 // recorded again, so a signed purchase kept from before a refund cannot bring the access or the
@@ -18,6 +19,7 @@ export const CATALOG = {
 export class LedgerFullError extends Error {}
 
 export class Ledger {
+    /** account → { transactions: Map(transactionId → record), renewals: Map(originalTransactionId → record) } */
     #accounts = new Map();
     #catalog;
     #maxAccounts;
@@ -53,15 +55,16 @@ export class Ledger {
      */
     record(transaction) {
         const account = Ledger.accountOf(transaction);
-        let transactions = this.#accounts.get(account);
-        if (!transactions) {
+        let entry = this.#accounts.get(account);
+        if (!entry) {
             if (this.#accounts.size >= this.#maxAccounts)
                 throw new LedgerFullError(
                     "The ledger holds its maximum number of accounts.",
                 );
-            transactions = new Map();
-            this.#accounts.set(account, transactions);
+            entry = { transactions: new Map(), renewals: new Map() };
+            this.#accounts.set(account, entry);
         }
+        const { transactions } = entry;
         const stored = transactions.get(transaction.transactionId);
         const isNew = stored === undefined;
         if (isNew && transactions.size >= this.#maxTransactions) {
@@ -73,6 +76,7 @@ export class Ledger {
             return { account, isNew, changed: false };
         transactions.set(transaction.transactionId, {
             transactionId: transaction.transactionId,
+            originalTransactionId: transaction.originalTransactionId,
             productId: transaction.productId,
             purchaseDate: transaction.purchaseDate,
             expiresDate: transaction.expiresDate,
@@ -85,10 +89,43 @@ export class Ledger {
         return { account, isNew, changed: true };
     }
 
+    /**
+     * Records the verified renewal information of a subscription of `account`, as a notification
+     * carries it next to the subscription's transaction. Only its Billing Grace Period counts.
+     * It replaces the stored information only when Apple signed it later.
+     * @returns {boolean} whether it changed anything
+     */
+    recordRenewal(account, renewalInfo) {
+        const entry = this.#accounts.get(account);
+        const originalId = renewalInfo.originalTransactionId;
+        if (!entry || typeof originalId !== "string") return false;
+        const stored = entry.renewals.get(originalId);
+        const signedDate = signedDateOf(renewalInfo);
+        if (stored && signedDate <= stored.signedDate) return false;
+        if (!stored && entry.renewals.size >= this.#maxTransactions) {
+            throw new LedgerFullError(
+                "The account holds its maximum number of subscriptions.",
+            );
+        }
+        entry.renewals.set(originalId, {
+            originalTransactionId: originalId,
+            gracePeriodExpiresDate: Number.isFinite(
+                renewalInfo.gracePeriodExpiresDate,
+            )
+                ? renewalInfo.gracePeriodExpiresDate
+                : null,
+            signedDate,
+        });
+        return true;
+    }
+
     /** The account's entitlements at `now` (milliseconds since 1970), sorted by name. */
     entitlements(account, now = Date.now()) {
+        const entry = this.#accounts.get(account);
+        if (!entry) return [];
+        const latest = latestPeriods(entry.transactions.values());
         const best = new Map();
-        for (const transaction of this.#accounts.get(account)?.values() ?? []) {
+        for (const transaction of entry.transactions.values()) {
             const product = this.#catalog[transaction.productId];
             if (
                 !product?.entitlement ||
@@ -98,12 +135,19 @@ export class Ledger {
                 continue;
             let expiresDate = null;
             if (product.kind === "autoRenewable") {
-                if (
-                    typeof transaction.expiresDate !== "number" ||
-                    transaction.expiresDate <= now
-                )
-                    continue;
+                if (typeof transaction.expiresDate !== "number") continue;
                 expiresDate = transaction.expiresDate;
+                // A grace period extends only the subscription's latest period: the one whose
+                // renewal failed.
+                const original = transaction.originalTransactionId;
+                const grace =
+                    entry.renewals.get(original)?.gracePeriodExpiresDate;
+                if (
+                    latest.get(original) === transaction &&
+                    typeof grace === "number"
+                )
+                    expiresDate = grace;
+                if (expiresDate <= now) continue;
             }
             const candidate = {
                 name: product.entitlement,
@@ -121,7 +165,9 @@ export class Ledger {
     /** Coins bought with consumables and not refunded. */
     coins(account) {
         let total = 0;
-        for (const transaction of this.#accounts.get(account)?.values() ?? []) {
+        for (const transaction of this.#accounts
+            .get(account)
+            ?.transactions.values() ?? []) {
             const product = this.#catalog[transaction.productId];
             if (product?.kind !== "consumable" || isRevoked(transaction))
                 continue;
@@ -145,6 +191,18 @@ function supersedes(incoming, stored) {
     if (isRevoked(stored)) return false;
     if (isRevoked(incoming)) return true;
     return signedDateOf(incoming) > stored.signedDate;
+}
+
+/** The transaction of each subscription whose period ends last, revoked ones included. */
+function latestPeriods(transactions) {
+    const latest = new Map();
+    for (const transaction of transactions) {
+        if (typeof transaction.expiresDate !== "number") continue;
+        const current = latest.get(transaction.originalTransactionId);
+        if (!current || transaction.expiresDate > current.expiresDate)
+            latest.set(transaction.originalTransactionId, transaction);
+    }
+    return latest;
 }
 
 function isRevoked(transaction) {

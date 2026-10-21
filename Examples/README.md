@@ -75,7 +75,7 @@ entitlements of each account:
 | Request | What it does |
 | --- | --- |
 | `POST /v1/transactions` with `{"signedTransaction": "…"}` | Verifies the JWS from `StoreTransaction.signedTransaction`, records it for the app account token and returns the account's entitlements and coins |
-| `POST /v1/notifications` with `{"signedPayload": "…"}` | Verifies an App Store Server Notification V2 and records the transaction inside it, so a refund removes access |
+| `POST /v1/notifications` with `{"signedPayload": "…"}` | Verifies an App Store Server Notification V2 and records the transaction and renewal information inside it, so a refund removes access and a Billing Grace Period keeps it |
 | `GET /v1/accounts/:id` | Returns the entitlements and coins of `token:<app account token>` or `original:<original transaction ID>` |
 | `GET /health` | Returns the environment the server runs in |
 
@@ -96,6 +96,14 @@ that transaction replaces it, so posting the signed purchase from before a refun
 back neither the access nor the coins. A refund counts whenever Apple signed it; any other copy
 replaces the stored one only when Apple signed it later. A reversed refund (`REFUND_REVERSED`)
 does not restore anything; handle that notification yourself if your app should.
+
+A subscription whose renewal failed keeps its entitlement until its Billing Grace Period ends,
+as on the device. The end comes from `gracePeriodExpiresDate` in the verified renewal information
+of a notification such as `DID_FAIL_TO_RENEW` with the `GRACE_PERIOD` subtype, and applies to
+the latest period of that subscription only. Renewal information replaces the stored one only
+when Apple signed it later, so a later status without a grace period ends the access. Renewal
+information for another subscription than the notification's transaction is refused. Without a
+grace period, access ends at `expiresDate`, also while Apple retries the payment.
 
 Request bodies are limited to 64 KB, signed values to 16 KB, and the in-memory ledger to 10 000
 accounts with 1 000 transactions each; use a database in production. The tests (`npm test`)

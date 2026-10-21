@@ -132,6 +132,83 @@ describe("ledger", () => {
         assert.equal(ledger.coins(account), 0);
     });
 
+    test("a Billing Grace Period extends the subscription's latest period until it ends", () => {
+        const day = 86_400_000;
+        const ledger = new Ledger();
+        const first = tx({
+            productId: "pro.monthly",
+            expiresDate: now - 31 * day,
+            signedDate: 1,
+        });
+        const original = first.originalTransactionId;
+        const latest = tx({
+            productId: "pro.monthly",
+            originalTransactionId: original,
+            expiresDate: now - 3_600_000,
+            signedDate: 2,
+        });
+        ledger.record(first);
+        ledger.record(latest);
+        assert.deepEqual(ledger.entitlements(account, now), []);
+
+        const grace = {
+            originalTransactionId: original,
+            gracePeriodExpiresDate: now + 6 * day,
+            signedDate: 10,
+        };
+        assert.equal(ledger.recordRenewal(account, grace), true);
+        assert.deepEqual(
+            ledger
+                .entitlements(account, now)
+                .map((e) => [e.transactionId, e.expiresDate]),
+            [[latest.transactionId, now + 6 * day]],
+        );
+        assert.deepEqual(ledger.entitlements(account, now + 6 * day), []);
+
+        // Renewal information signed earlier changes nothing; a later one without a grace period
+        // ends it, and sending the earlier one again does not bring it back.
+        const older = { originalTransactionId: original, signedDate: 9 };
+        assert.equal(ledger.recordRenewal(account, older), false);
+        const later = { originalTransactionId: original, signedDate: 11 };
+        assert.equal(ledger.recordRenewal(account, later), true);
+        assert.equal(ledger.recordRenewal(account, grace), false);
+        assert.deepEqual(ledger.entitlements(account, now), []);
+    });
+
+    test("a grace period never gives access to a refunded period or to another subscription", () => {
+        const day = 86_400_000;
+        const ledger = new Ledger();
+        const older = tx({
+            productId: "pro.monthly",
+            expiresDate: now - 31 * day,
+        });
+        const original = older.originalTransactionId;
+        ledger.record(older);
+        ledger.record(
+            tx({
+                productId: "pro.monthly",
+                originalTransactionId: original,
+                expiresDate: now - 3_600_000,
+                revocationDate: now - 1,
+            }),
+        );
+        ledger.record(
+            tx({ productId: "pro.yearly", expiresDate: now - 3_600_000 }),
+        );
+        const grace = (originalTransactionId) => ({
+            originalTransactionId,
+            gracePeriodExpiresDate: now + 6 * day,
+            signedDate: 10,
+        });
+        ledger.recordRenewal(account, grace(original));
+        ledger.recordRenewal(account, grace("424242"));
+        assert.deepEqual(ledger.entitlements(account, now), []);
+        assert.equal(
+            ledger.recordRenewal("token:nobody", grace(original)),
+            false,
+        );
+    });
+
     test("quantities outside StoreKit limits count as one", () => {
         const ledger = new Ledger();
         for (const quantity of [0, -5, 11, 2.5, 1e308, "3", null])

@@ -9,6 +9,7 @@ import {
     makeChain,
     notification,
     post,
+    renewalInfo,
     signJWS,
     startServer,
     transaction,
@@ -155,6 +156,103 @@ describe("receipt server in Sandbox, with a test root in place of Apple Root CA 
             assert.deepEqual(body.entitlements, []);
             assert.equal(body.coins, 0);
         }
+    });
+
+    test("a subscription in its Billing Grace Period keeps its entitlement until the grace period ends", async () => {
+        const token = "55555555-6666-4777-8888-999999999999";
+        const day = 86_400_000;
+        // Apple signs the data in a notification when it sends it; the test chain is only
+        // valid from the start of the test run, so every signedDate is after it.
+        const start = Date.now();
+        const period = transaction({
+            productId: "pro.monthly",
+            appAccountToken: token,
+            purchaseDate: start - 31 * day,
+            expiresDate: start - 3_600_000,
+            signedDate: start,
+        });
+        const signedPeriod = signJWS(period, trusted);
+        const send = async (type, renewal, subtype) => {
+            const payload = notification(type, signedPeriod, "Sandbox", {
+                subtype,
+                signedRenewalInfo: signJWS(renewal, trusted),
+            });
+            const { status } = await post(`${server.url}/v1/notifications`, {
+                signedPayload: signJWS(payload, trusted),
+            });
+            assert.equal(status, 200);
+        };
+        const entitlements = async () =>
+            (
+                await (
+                    await fetch(`${server.url}/v1/accounts/token:${token}`)
+                ).json()
+            ).entitlements.map((e) => [e.productId, e.expiresDate]);
+
+        const graceEnd = start + 6 * day;
+        const failed = renewalInfo({
+            originalTransactionId: period.originalTransactionId,
+            isInBillingRetryPeriod: true,
+            gracePeriodExpiresDate: graceEnd,
+            signedDate: start + 1_000,
+        });
+        await send("DID_FAIL_TO_RENEW", failed, "GRACE_PERIOD");
+        assert.deepEqual(await entitlements(), [["pro.monthly", graceEnd]]);
+
+        // A later renewal status without a grace period ends the access; the earlier one sent
+        // again does not bring it back.
+        const ended = renewalInfo({
+            originalTransactionId: period.originalTransactionId,
+            isInBillingRetryPeriod: true,
+            signedDate: start + 2_000,
+        });
+        await send("GRACE_PERIOD_EXPIRED", ended);
+        assert.deepEqual(await entitlements(), []);
+        await send("DID_FAIL_TO_RENEW", failed, "GRACE_PERIOD");
+        assert.deepEqual(await entitlements(), []);
+    });
+
+    test("renewal information for another subscription or signed by another chain is refused", async () => {
+        const token = "44444444-6666-4777-8888-999999999999";
+        const period = transaction({
+            productId: "pro.monthly",
+            appAccountToken: token,
+            expiresDate: Date.now() - 3_600_000,
+        });
+        const notify = (renewal, chain) =>
+            post(`${server.url}/v1/notifications`, {
+                signedPayload: signJWS(
+                    notification(
+                        "DID_FAIL_TO_RENEW",
+                        signJWS(period, trusted),
+                        "Sandbox",
+                        {
+                            subtype: "GRACE_PERIOD",
+                            signedRenewalInfo: signJWS(renewal, chain),
+                        },
+                    ),
+                    trusted,
+                ),
+            });
+        const grace = {
+            gracePeriodExpiresDate: Date.now() + 86_400_000,
+        };
+        const foreign = await notify(
+            renewalInfo({ ...grace, originalTransactionId: "1" }),
+            trusted,
+        );
+        assert.equal(foreign.status, 422);
+        const forged = await notify(
+            renewalInfo({
+                ...grace,
+                originalTransactionId: period.originalTransactionId,
+            }),
+            rogue,
+        );
+        assert.equal(forged.status, 422);
+        // Nothing of either notification was recorded, not even the transaction.
+        const lookup = await fetch(`${server.url}/v1/accounts/token:${token}`);
+        assert.equal(lookup.status, 404);
     });
 
     test("data signed by another chain is rejected", async () => {

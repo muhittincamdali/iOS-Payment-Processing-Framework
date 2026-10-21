@@ -67,6 +67,12 @@ Apple signed it, since notifications can arrive out of order; any other copy rep
 one only when Apple signed it later. A reversed refund (`REFUND_REVERSED`) therefore does not
 restore anything in the example; handle that notification yourself if your app should.
 
+A subscription whose renewal failed keeps its entitlement until its Billing Grace Period ends,
+as ``EntitlementResolver`` does on the device. The server takes the end from
+`gracePeriodExpiresDate` in the verified renewal information that notifications carry, such as
+`DID_FAIL_TO_RENEW` with the `GRACE_PERIOD` subtype, and only for the latest period of that
+subscription; renewal information Apple signed later replaces it.
+
 ```sh
 cd Examples/ReceiptServer
 npm ci
