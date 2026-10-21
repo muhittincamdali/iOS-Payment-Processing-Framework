@@ -1,4 +1,4 @@
-<!-- i18n-source: README.md@e12cb89fd7ccc9c2aaf040a7e47210d37cd6a6f7 status=reviewed -->
+<!-- i18n-source: README.md@ee71fbf6fb030e9bf7a2312c9fafe86ddc13c391 status=reviewed -->
 <!-- brand:start -->
 
 <p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/muhittincamdali/iOS-Payment-Processing-Framework/master/.github/brand/banner-dark.svg"><source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/muhittincamdali/iOS-Payment-Processing-Framework/master/.github/brand/banner-light.svg"><img src="https://raw.githubusercontent.com/muhittincamdali/iOS-Payment-Processing-Framework/master/.github/brand/banner-light.svg" alt="PaymentKit: Sell in-app purchases with StoreKit 2, take Apple Pay and keep money exact on Apple platforms."></picture></p>
@@ -31,11 +31,11 @@ PaymentKit 是一个 Swift 软件包，用于处理 Apple 平台应用中的支�
 
 - **先交付，再完成** — `Store` 会检查 StoreKit 的签名，把每笔通过验证的交易交给你的 `deliver` 闭包，并且只有在它返回之后才完成该交易；交付失败的交易会在下次启动时再次送达。退款以 `.revoked` 的形式到达，绝不会被当作一次新购买。
 - **代币只入账一次** — 定义了入账数量的消耗型商品会进入账本，账本把余额和已处理的交易放在一次原子写入中保存，因此重复投递、`finish()` 之前的重启以及退款都不会造成重复入账。
-- **访问权限跟随 App Store** — 续订、退款、Ask to Buy 批准以及在其他设备上的购买都会自动更新 `entitlements`；应用运行期间到期的订阅会在到期时刻被移除。
+- **访问权限跟随 App Store** — 续订、退款、Ask to Buy 批准以及在其他设备上的购买都会自动更新 `entitlements`；应用运行期间到期的订阅会在到期时刻被移除，App Store 未能续订的订阅会保留访问权限，直到其 Billing Grace Period 结束。
 - **精确的金额** — `Money` 以 ISO 4217 货币的最小单位存储；小数位过多、`NaN`、溢出和混用货币都会抛出错误，而不是四舍五入或崩溃，分摊时也不会丢掉一分钱。
 - **经过检查的 Apple Pay 请求** — `ApplePayRequest` 会在 PassKit 接触请求之前验证商户、货币、标签和总额，`ApplePayController` 则通过 async/await 报告支付结果。
 - **不泄露的银行卡信息** — `CardNumber`、`CardSecurityCode` 和 `CardForm` 会校验输入（卡品牌、长度、Luhn、有效期），并在日志、`dump` 和调试器中显示为 `•••• 4242`。
-- **端到端测试** — 在 macOS 和 iPhone 模拟器上运行 124 个 Swift Testing 测试，示例应用中有 7 个 StoreKit 测试和 4 个 UI 测试（通过 Xcode 使用真实的 StoreKit 和真实的 Apple Pay 面板），收据服务器另有 28 个测试。
+- **端到端测试** — 在 macOS 和 iPhone 模拟器上运行 129 个 Swift Testing 测试，示例应用中有 8 个 StoreKit 测试和 4 个 UI 测试（通过 Xcode 使用真实的 StoreKit 和真实的 Apple Pay 面板），收据服务器另有 37 个测试。
 
 ## 快速开始
 
@@ -173,7 +173,7 @@ npm ci
 BUNDLE_ID=com.example.shop APPLE_ENVIRONMENT=Sandbox npm start
 ```
 
-它会检查直至 Apple Root CA - G3 的证书链、bundle identifier 和环境，按 app account token 保存各自的权益，接收 App Store Server Notifications 以便退款后撤销访问权限，对消耗型商品只入账一次，并限制每个请求。在 Xcode 中使用 StoreKit 配置文件产生的交易不是由 App Store 签名的；服务器只有在设置 `APPLE_ENVIRONMENT=Xcode ALLOW_UNVERIFIED_TRANSACTIONS=1` 时才会接受它们，设置 `NODE_ENV=production` 时绝不接受。
+它会检查直至 Apple Root CA - G3 的证书链、bundle identifier 和环境，按 app account token 将各自的权益保存在重启后不会丢失的文件中，接收 App Store Server Notifications 以便退款后撤销访问权限、在 Billing Grace Period 内保留访问权限，对消耗型商品只入账一次，并限制每个请求。在 Xcode 中使用 StoreKit 配置文件产生的交易不是由 App Store 签名的；服务器只有在设置 `APPLE_ENVIRONMENT=Xcode ALLOW_UNVERIFIED_TRANSACTIONS=1` 时才会接受它们，设置 `NODE_ENV=production` 时绝不接受。
 
 ### 金额
 

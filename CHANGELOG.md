@@ -55,7 +55,7 @@ results; they are removed (see "Removed").
   information in notifications.
 - A DocC catalog with seven articles, published to GitHub Pages.
 - `scripts/capture-screenshots.sh`, which produces the README screenshots from the UI tests.
-- 124 Swift Testing tests, run on macOS and an iPhone simulator, including seeded random
+- 129 Swift Testing tests, run on macOS and an iPhone simulator, including seeded random
   histories of purchases, repeats, refunds, upgrades and renewals.
 
 ### Changed

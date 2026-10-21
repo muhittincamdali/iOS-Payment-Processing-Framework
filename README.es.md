@@ -1,4 +1,4 @@
-<!-- i18n-source: README.md@e12cb89fd7ccc9c2aaf040a7e47210d37cd6a6f7 status=reviewed -->
+<!-- i18n-source: README.md@ee71fbf6fb030e9bf7a2312c9fafe86ddc13c391 status=reviewed -->
 <!-- brand:start -->
 
 <p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/muhittincamdali/iOS-Payment-Processing-Framework/master/.github/brand/banner-dark.svg"><source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/muhittincamdali/iOS-Payment-Processing-Framework/master/.github/brand/banner-light.svg"><img src="https://raw.githubusercontent.com/muhittincamdali/iOS-Payment-Processing-Framework/master/.github/brand/banner-light.svg" alt="PaymentKit: Sell in-app purchases with StoreKit 2, take Apple Pay and keep money exact on Apple platforms."></picture></p>
@@ -31,11 +31,11 @@ PaymentKit es un paquete de Swift para el código de pagos de las apps en plataf
 
 - **Compras entregadas y luego finalizadas** — `Store` comprueba la firma de StoreKit, entrega cada transacción verificada a tu closure `deliver` y la finaliza solo cuando este termina; una entrega fallida vuelve a llegar en el siguiente arranque. Los reembolsos llegan como `.revoked`, nunca como una compra nueva.
 - **Monedas abonadas una sola vez** — los consumibles definidos con un crédito pasan a un libro que guarda el saldo y las transacciones gestionadas en una única escritura atómica, de modo que las repeticiones, los reinicios antes de `finish()` y los reembolsos nunca abonan dos veces.
-- **Acceso que sigue a la App Store** — las renovaciones, los reembolsos, las aprobaciones de Ask to Buy y las compras en otros dispositivos actualizan `entitlements` por sí solos, y una suscripción que caduca con la app abierta se retira en su fecha de vencimiento.
+- **Acceso que sigue a la App Store** — las renovaciones, los reembolsos, las aprobaciones de Ask to Buy y las compras en otros dispositivos actualizan `entitlements` por sí solos, una suscripción que caduca con la app abierta se retira en su fecha de vencimiento, y una que la App Store no pudo renovar conserva el acceso hasta que termina su Billing Grace Period.
 - **Dinero exacto** — `Money` guarda las unidades menores de una divisa ISO 4217; demasiados decimales, `NaN`, desbordamientos y divisas mezcladas lanzan un error en lugar de redondear o fallar, y los repartos nunca pierden un céntimo.
 - **Solicitudes de Apple Pay comprobadas** — `ApplePayRequest` valida el comercio, la divisa, las etiquetas y los totales antes de que PassKit los vea, y `ApplePayController` informa del pago con async/await.
 - **Datos de tarjeta que no se filtran** — `CardNumber`, `CardSecurityCode` y `CardForm` validan la entrada (marca, longitud, Luhn, caducidad) y se imprimen como `•••• 4242` en los registros, en `dump` y en el depurador.
-- **Probado de extremo a extremo** — 124 pruebas de Swift Testing en macOS y en un simulador de iPhone, 7 pruebas de StoreKit y 4 pruebas de UI en la app de ejemplo (StoreKit real a través de Xcode, la hoja real de Apple Pay) y 28 pruebas para el servidor de recibos.
+- **Probado de extremo a extremo** — 129 pruebas de Swift Testing en macOS y en un simulador de iPhone, 8 pruebas de StoreKit y 4 pruebas de UI en la app de ejemplo (StoreKit real a través de Xcode, la hoja real de Apple Pay) y 37 pruebas para el servidor de recibos.
 
 ## Inicio rápido
 
@@ -173,7 +173,7 @@ npm ci
 BUNDLE_ID=com.example.shop APPLE_ENVIRONMENT=Sandbox npm start
 ```
 
-Comprueba la cadena hasta Apple Root CA - G3, el identificador del bundle y el entorno, guarda los derechos de acceso de cada app account token, recibe App Store Server Notifications para que los reembolsos retiren el acceso, abona un consumible una sola vez y limita cada solicitud. Las transacciones hechas con un archivo de configuración de StoreKit en Xcode no las firma la App Store; el servidor solo las acepta con `APPLE_ENVIRONMENT=Xcode ALLOW_UNVERIFIED_TRANSACTIONS=1`, nunca con `NODE_ENV=production`.
+Comprueba la cadena hasta Apple Root CA - G3, el identificador del bundle y el entorno, guarda los derechos de acceso de cada app account token en un archivo que sobrevive a un reinicio, recibe App Store Server Notifications para que los reembolsos retiren el acceso y un Billing Grace Period lo conserve, abona un consumible una sola vez y limita cada solicitud. Las transacciones hechas con un archivo de configuración de StoreKit en Xcode no las firma la App Store; el servidor solo las acepta con `APPLE_ENVIRONMENT=Xcode ALLOW_UNVERIFIED_TRANSACTIONS=1`, nunca con `NODE_ENV=production`.
 
 ### Dinero
 

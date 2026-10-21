@@ -1,4 +1,4 @@
-<!-- i18n-source: README.md@e12cb89fd7ccc9c2aaf040a7e47210d37cd6a6f7 status=reviewed -->
+<!-- i18n-source: README.md@ee71fbf6fb030e9bf7a2312c9fafe86ddc13c391 status=reviewed -->
 <!-- brand:start -->
 
 <p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/muhittincamdali/iOS-Payment-Processing-Framework/master/.github/brand/banner-dark.svg"><source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/muhittincamdali/iOS-Payment-Processing-Framework/master/.github/brand/banner-light.svg"><img src="https://raw.githubusercontent.com/muhittincamdali/iOS-Payment-Processing-Framework/master/.github/brand/banner-light.svg" alt="PaymentKit: Sell in-app purchases with StoreKit 2, take Apple Pay and keep money exact on Apple platforms."></picture></p>
@@ -31,11 +31,11 @@ PaymentKit은 Apple 플랫폼 앱의 결제 코드를 위한 Swift 패키지입�
 
 - **전달한 뒤에 완료하는 구매** — `Store`는 StoreKit의 서명을 확인하고, 검증된 각 트랜잭션을 `deliver` 클로저에 넘기며, 그 클로저가 반환된 뒤에야 트랜잭션을 완료합니다. 전달에 실패한 트랜잭션은 다음 실행 때 다시 도착합니다. 환불은 새 구매가 아니라 `.revoked`로 도착합니다.
 - **코인은 정확히 한 번만 지급** — 지급량이 정의된 소모성 상품은 원장에 기록됩니다. 원장은 잔액과 처리된 트랜잭션을 한 번의 원자적 쓰기로 저장하므로, 중복 전달, `finish()` 이전의 재시작, 환불이 있어도 두 번 지급되지 않습니다.
-- **App Store를 따라가는 접근 권한** — 갱신, 환불, Ask to Buy 승인, 다른 기기에서의 구매가 `entitlements`에 자동으로 반영됩니다. 앱이 실행 중일 때 만료되는 구독은 만료 시각에 제거됩니다.
+- **App Store를 따라가는 접근 권한** — 갱신, 환불, Ask to Buy 승인, 다른 기기에서의 구매가 `entitlements`에 자동으로 반영됩니다. 앱이 실행 중일 때 만료되는 구독은 만료 시각에 제거되고, App Store가 갱신하지 못한 구독은 Billing Grace Period가 끝날 때까지 접근 권한을 유지합니다.
 - **정확한 금액** — `Money`는 ISO 4217 통화의 최소 단위로 금액을 저장합니다. 소수 자릿수가 너무 많거나, `NaN`, 오버플로, 서로 다른 통화가 섞이면 반올림하거나 크래시하는 대신 오류를 던지며, 금액을 나눠도 1센트도 사라지지 않습니다.
 - **검증된 Apple Pay 요청** — `ApplePayRequest`는 PassKit이 요청을 받기 전에 판매자, 통화, 레이블, 합계를 검증하고, `ApplePayController`는 결제 결과를 async/await로 알려 줍니다.
 - **유출되지 않는 카드 정보** — `CardNumber`, `CardSecurityCode`, `CardForm`은 입력(브랜드, 길이, Luhn, 유효 기간)을 검증하며, 로그, `dump`, 디버거에서는 `•••• 4242`로 출력됩니다.
-- **엔드 투 엔드 테스트** — macOS와 iPhone 시뮬레이터에서 Swift Testing 테스트 124개, 예제 앱에서 StoreKit 테스트 7개와 UI 테스트 4개(Xcode를 통한 실제 StoreKit과 실제 Apple Pay 시트), 영수증 서버 테스트 28개를 실행합니다.
+- **엔드 투 엔드 테스트** — macOS와 iPhone 시뮬레이터에서 Swift Testing 테스트 129개, 예제 앱에서 StoreKit 테스트 8개와 UI 테스트 4개(Xcode를 통한 실제 StoreKit과 실제 Apple Pay 시트), 영수증 서버 테스트 37개를 실행합니다.
 
 ## 빠른 시작
 
@@ -173,7 +173,7 @@ npm ci
 BUNDLE_ID=com.example.shop APPLE_ENVIRONMENT=Sandbox npm start
 ```
 
-이 서버는 Apple Root CA - G3까지의 인증서 체인, 번들 식별자, 환경을 확인하고, app account token별로 접근 권한을 보관하며, 환불이 접근 권한을 회수하도록 App Store Server Notifications를 받고, 소모성 상품은 한 번만 지급하며, 모든 요청을 제한합니다. Xcode에서 StoreKit 구성 파일로 만든 트랜잭션은 App Store가 서명하지 않습니다. 서버는 `APPLE_ENVIRONMENT=Xcode ALLOW_UNVERIFIED_TRANSACTIONS=1`일 때만 이를 받아들이며, `NODE_ENV=production`에서는 절대 받아들이지 않습니다.
+이 서버는 Apple Root CA - G3까지의 인증서 체인, 번들 식별자, 환경을 확인하고, app account token별 접근 권한을 재시작해도 사라지지 않는 파일에 보관하며, 환불이 접근 권한을 회수하고 Billing Grace Period 동안에는 접근 권한이 유지되도록 App Store Server Notifications를 받고, 소모성 상품은 한 번만 지급하며, 모든 요청을 제한합니다. Xcode에서 StoreKit 구성 파일로 만든 트랜잭션은 App Store가 서명하지 않습니다. 서버는 `APPLE_ENVIRONMENT=Xcode ALLOW_UNVERIFIED_TRANSACTIONS=1`일 때만 이를 받아들이며, `NODE_ENV=production`에서는 절대 받아들이지 않습니다.
 
 ### 금액
 

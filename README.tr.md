@@ -1,4 +1,4 @@
-<!-- i18n-source: README.md@e12cb89fd7ccc9c2aaf040a7e47210d37cd6a6f7 status=reviewed -->
+<!-- i18n-source: README.md@ee71fbf6fb030e9bf7a2312c9fafe86ddc13c391 status=reviewed -->
 <!-- brand:start -->
 
 <p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/muhittincamdali/iOS-Payment-Processing-Framework/master/.github/brand/banner-dark.svg"><source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/muhittincamdali/iOS-Payment-Processing-Framework/master/.github/brand/banner-light.svg"><img src="https://raw.githubusercontent.com/muhittincamdali/iOS-Payment-Processing-Framework/master/.github/brand/banner-light.svg" alt="PaymentKit: Sell in-app purchases with StoreKit 2, take Apple Pay and keep money exact on Apple platforms."></picture></p>
@@ -31,11 +31,11 @@ PaymentKit, Apple platformlarındaki uygulamaların ödeme kodu için bir Swift 
 
 - **Satın almalar teslim edilir, sonra bitirilir** — `Store`, StoreKit'in imzasını denetler, doğrulanmış her işlemi `deliver` closure'ınıza verir ve işlemi yalnızca o closure döndükten sonra bitirir; başarısız bir teslimat bir sonraki açılışta tekrar gelir. İadeler yeni bir satın alma olarak değil, `.revoked` olarak gelir.
 - **Jetonlar tam olarak bir kez eklenir** — kredisi tanımlanmış tüketilebilir ürünler, bakiyeyi ve işlenmiş işlemleri tek bir atomik yazımda kaydeden bir deftere gider; böylece tekrarlar, `finish()` öncesindeki yeniden başlatmalar ve iadeler hiçbir zaman iki kez kredi yazmaz.
-- **App Store'u izleyen erişim** — yenilemeler, iadeler, Ask to Buy onayları ve diğer cihazlardaki satın almalar `entitlements` değerini kendiliğinden günceller; uygulama açıkken süresi dolan bir abonelik bitiş tarihinde kaldırılır.
+- **App Store'u izleyen erişim** — yenilemeler, iadeler, Ask to Buy onayları ve diğer cihazlardaki satın almalar `entitlements` değerini kendiliğinden günceller; uygulama açıkken süresi dolan bir abonelik bitiş tarihinde kaldırılır, App Store'un yenileyemediği bir abonelik ise Billing Grace Period'u bitene kadar erişimini korur.
 - **Kuruşu kuruşuna para** — `Money`, bir ISO 4217 para biriminin en küçük birimlerini saklar; fazla ondalık basamak, `NaN`, taşma ve karışık para birimleri yuvarlama ya da çökme yerine hata fırlatır; paylaştırmalarda tek kuruş kaybolmaz.
 - **Denetlenen Apple Pay istekleri** — `ApplePayRequest`, satıcıyı, para birimini, etiketleri ve toplamları PassKit görmeden önce doğrular; `ApplePayController` ödemeyi async/await ile bildirir.
 - **Sızmayan kart bilgileri** — `CardNumber`, `CardSecurityCode` ve `CardForm` girdiyi (marka, uzunluk, Luhn, son kullanma tarihi) doğrular; log'larda, `dump` çıktısında ve hata ayıklayıcıda `•••• 4242` olarak yazdırılır.
-- **Uçtan uca test edilmiş** — macOS'ta ve bir iPhone simülatöründe 124 Swift Testing testi, örnek uygulamada 7 StoreKit testi ve 4 UI testi (Xcode üzerinden gerçek StoreKit, gerçek Apple Pay sayfası) ve makbuz sunucusu için 28 test.
+- **Uçtan uca test edilmiş** — macOS'ta ve bir iPhone simülatöründe 129 Swift Testing testi, örnek uygulamada 8 StoreKit testi ve 4 UI testi (Xcode üzerinden gerçek StoreKit, gerçek Apple Pay sayfası) ve makbuz sunucusu için 37 test.
 
 ## Hızlı başlangıç
 
@@ -173,7 +173,7 @@ npm ci
 BUNDLE_ID=com.example.shop APPLE_ENVIRONMENT=Sandbox npm start
 ```
 
-Sunucu Apple Root CA - G3'e kadar uzanan zinciri, bundle identifier'ı ve ortamı denetler, her app account token'ın hak ettiği erişimleri tutar, iadelerin erişimi kaldırması için App Store Server Notifications'ı alır, tüketilebilir bir ürünün kredisini bir kez yazar ve her isteği sınırlar. Xcode'da bir StoreKit yapılandırma dosyasıyla yapılan işlemler App Store tarafından imzalanmaz; sunucu bunları yalnızca `APPLE_ENVIRONMENT=Xcode ALLOW_UNVERIFIED_TRANSACTIONS=1` ile kabul eder, `NODE_ENV=production` ile asla.
+Sunucu Apple Root CA - G3'e kadar uzanan zinciri, bundle identifier'ı ve ortamı denetler, her app account token'ın hak ettiği erişimleri yeniden başlatmada kaybolmayan bir dosyada tutar, iadelerin erişimi kaldırması ve Billing Grace Period'un erişimi koruması için App Store Server Notifications'ı alır, tüketilebilir bir ürünün kredisini bir kez yazar ve her isteği sınırlar. Xcode'da bir StoreKit yapılandırma dosyasıyla yapılan işlemler App Store tarafından imzalanmaz; sunucu bunları yalnızca `APPLE_ENVIRONMENT=Xcode ALLOW_UNVERIFIED_TRANSACTIONS=1` ile kabul eder, `NODE_ENV=production` ile asla.
 
 ### Para tutarları
 

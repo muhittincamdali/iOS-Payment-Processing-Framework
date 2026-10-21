@@ -40,8 +40,9 @@ Apple's App Store Server Library. The package has no dependencies outside Apple'
   saves the balance and the handled transactions in one atomic write, so repeats, restarts
   before `finish()` and refunds never credit twice.
 - **Access that follows the App Store** — renewals, refunds, Ask to Buy approvals and purchases
-  on other devices update `entitlements` by themselves, and a subscription that runs out while
-  the app is open is removed at its expiration date.
+  on other devices update `entitlements` by themselves, a subscription that runs out while the
+  app is open is removed at its expiration date, and one the App Store could not renew keeps
+  access until its Billing Grace Period ends.
 - **Exact money** — `Money` stores minor units of an ISO 4217 currency; too many decimals, `NaN`,
   overflow and mixed currencies throw instead of rounding or crashing, and allocations never
   lose a cent.
@@ -50,9 +51,9 @@ Apple's App Store Server Library. The package has no dependencies outside Apple'
   async/await.
 - **Card details that do not leak** — `CardNumber`, `CardSecurityCode` and `CardForm` validate
   input (brand, length, Luhn, expiry) and print as `•••• 4242` in logs, `dump` and the debugger.
-- **Tested end to end** — 124 Swift Testing tests on macOS and an iPhone simulator, 7 StoreKit
+- **Tested end to end** — 129 Swift Testing tests on macOS and an iPhone simulator, 8 StoreKit
   tests and 4 UI tests in the example app (real StoreKit through Xcode, the real Apple Pay
-  sheet), and 28 tests for the receipt server.
+  sheet), and 37 tests for the receipt server.
 
 ## Quick start
 
@@ -205,11 +206,11 @@ BUNDLE_ID=com.example.shop APPLE_ENVIRONMENT=Sandbox npm start
 ```
 
 It checks the chain up to Apple Root CA - G3, the bundle identifier and the environment, keeps
-the entitlements of each app account token, takes App Store Server Notifications so refunds
-remove access, credits a consumable once, and limits every request. Transactions made with a
-StoreKit configuration file in Xcode are not signed by the App Store; the server accepts them
-only with `APPLE_ENVIRONMENT=Xcode ALLOW_UNVERIFIED_TRANSACTIONS=1`, never with
-`NODE_ENV=production`.
+the entitlements of each app account token in a file that a restart does not lose, takes App
+Store Server Notifications so refunds remove access and a Billing Grace Period keeps it, credits
+a consumable once, and limits every request. Transactions made with a StoreKit configuration
+file in Xcode are not signed by the App Store; the server accepts them only with
+`APPLE_ENVIRONMENT=Xcode ALLOW_UNVERIFIED_TRANSACTIONS=1`, never with `NODE_ENV=production`.
 
 ### Money
 

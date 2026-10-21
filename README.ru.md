@@ -1,4 +1,4 @@
-<!-- i18n-source: README.md@e12cb89fd7ccc9c2aaf040a7e47210d37cd6a6f7 status=reviewed -->
+<!-- i18n-source: README.md@ee71fbf6fb030e9bf7a2312c9fafe86ddc13c391 status=reviewed -->
 <!-- brand:start -->
 
 <p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/muhittincamdali/iOS-Payment-Processing-Framework/master/.github/brand/banner-dark.svg"><source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/muhittincamdali/iOS-Payment-Processing-Framework/master/.github/brand/banner-light.svg"><img src="https://raw.githubusercontent.com/muhittincamdali/iOS-Payment-Processing-Framework/master/.github/brand/banner-light.svg" alt="PaymentKit: Sell in-app purchases with StoreKit 2, take Apple Pay and keep money exact on Apple platforms."></picture></p>
@@ -31,11 +31,11 @@ PaymentKit — это Swift-пакет для платёжного кода пр
 
 - **Сначала доставка, затем завершение покупки** — `Store` проверяет подпись StoreKit, передаёт каждую проверенную транзакцию вашему замыканию `deliver` и завершает её только после того, как оно вернётся; неудавшаяся доставка повторяется при следующем запуске. Возвраты приходят как `.revoked`, а не как новая покупка.
 - **Монеты начисляются ровно один раз** — расходуемые товары с заданным начислением попадают в журнал, который сохраняет баланс и обработанные транзакции одной атомарной записью, поэтому повторы, перезапуски до `finish()` и возвраты никогда не приводят к двойному начислению.
-- **Доступ, следующий за App Store** — продления, возвраты, одобрения Ask to Buy и покупки на других устройствах сами обновляют `entitlements`, а подписка, истёкшая при открытом приложении, снимается в момент окончания срока.
+- **Доступ, следующий за App Store** — продления, возвраты, одобрения Ask to Buy и покупки на других устройствах сами обновляют `entitlements`, подписка, истёкшая при открытом приложении, снимается в момент окончания срока, а подписка, которую App Store не смог продлить, сохраняет доступ до конца своего Billing Grace Period.
 - **Точные суммы** — `Money` хранит минимальные единицы валюты по ISO 4217; слишком много знаков после запятой, `NaN`, переполнение и смешанные валюты приводят к ошибке, а не к округлению или падению, а при разделении суммы не теряется ни одного цента.
 - **Проверенные запросы Apple Pay** — `ApplePayRequest` проверяет продавца, валюту, подписи и итоговые суммы до того, как их увидит PassKit, а `ApplePayController` сообщает о платеже через async/await.
 - **Данные карты, которые не утекают** — `CardNumber`, `CardSecurityCode` и `CardForm` проверяют ввод (платёжную систему, длину, алгоритм Луна, срок действия) и выводятся как `•••• 4242` в логах, в `dump` и в отладчике.
-- **Сквозное тестирование** — 124 теста Swift Testing на macOS и в симуляторе iPhone, 7 тестов StoreKit и 4 UI-теста в примере приложения (настоящий StoreKit через Xcode, настоящий лист Apple Pay) и 28 тестов для сервера квитанций.
+- **Сквозное тестирование** — 129 тестов Swift Testing на macOS и в симуляторе iPhone, 8 тестов StoreKit и 4 UI-теста в примере приложения (настоящий StoreKit через Xcode, настоящий лист Apple Pay) и 37 тестов для сервера квитанций.
 
 ## Быстрый старт
 
@@ -173,7 +173,7 @@ npm ci
 BUNDLE_ID=com.example.shop APPLE_ENVIRONMENT=Sandbox npm start
 ```
 
-Он проверяет цепочку сертификатов до Apple Root CA - G3, идентификатор бандла и окружение, хранит права доступа для каждого app account token, принимает App Store Server Notifications, чтобы возвраты отзывали доступ, начисляет расходуемый товар один раз и ограничивает каждый запрос. Транзакции, созданные с файлом конфигурации StoreKit в Xcode, App Store не подписывает; сервер принимает их только при `APPLE_ENVIRONMENT=Xcode ALLOW_UNVERIFIED_TRANSACTIONS=1` и никогда при `NODE_ENV=production`.
+Он проверяет цепочку сертификатов до Apple Root CA - G3, идентификатор бандла и окружение, хранит права доступа для каждого app account token в файле, который переживает перезапуск, принимает App Store Server Notifications, чтобы возвраты отзывали доступ, а Billing Grace Period его сохранял, начисляет расходуемый товар один раз и ограничивает каждый запрос. Транзакции, созданные с файлом конфигурации StoreKit в Xcode, App Store не подписывает; сервер принимает их только при `APPLE_ENVIRONMENT=Xcode ALLOW_UNVERIFIED_TRANSACTIONS=1` и никогда при `NODE_ENV=production`.
 
 ### Денежные суммы
 
