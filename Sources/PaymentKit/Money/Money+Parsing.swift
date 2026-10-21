@@ -25,10 +25,11 @@ extension Money {
     /// with three digits after the last one and two or three between the others, and not after a
     /// leading `0`, as in `1,234,567` or the Indian `12,34,567`. So `"12,50"` in the United
     /// States or `"0.99"` and `"0.500"` in Germany, where the separator was meant as a decimal
-    /// point, throws instead of becoming 100 or 1000 times larger. Currency symbols, letters,
-    /// exponents and a second decimal separator throw too. An amount with more decimals than the
-    /// currency has throws instead of being rounded, so `"10.999"` dollars is reported to the
-    /// person rather than charged as `11.00`.
+    /// point, throws instead of becoming 100 or 1000 times larger. A period or comma the locale
+    /// uses for neither, such as `"1.500"` in France, throws as well, because it could mean 1.50
+    /// or 1500. Currency symbols, letters, exponents and a second decimal separator throw too.
+    /// An amount with more decimals than the currency has throws instead of being rounded, so
+    /// `"10.999"` dollars is reported to the person rather than charged as `11.00`.
     ///
     /// - Throws: ``MoneyError/invalidText``, ``MoneyError/tooManyFractionDigits(currency:)`` or
     ///   ``MoneyError/outOfRange``.
@@ -44,6 +45,7 @@ extension Money {
     }
 
     /// Rewrites localized text as `-?digits(.digits)?`, checking where grouping separators are.
+    /// Any other character throws, so only the locale's own decimal separator becomes a point.
     private static func plainNumber(
         from text: String,
         decimalSeparator: String,
@@ -62,6 +64,10 @@ extension Money {
             } else if String(character) == groupingSeparator || grouping.contains(character) {
                 guard fraction == nil else { throw .invalidText }
                 groups.append("")
+            } else if !character.isASCII || !character.isNumber {
+                // A period or comma the locale does not use would otherwise reach strictDecimal,
+                // which reads "." as a decimal point: "1.500" in France would become 1.50.
+                throw .invalidText
             } else if fraction != nil {
                 fraction?.append(character)
             } else {

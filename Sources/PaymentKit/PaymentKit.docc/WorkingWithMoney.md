@@ -46,7 +46,9 @@ crashing:
 - typed text with a grouping separator that does not group digits, such as `12,50` in the
   United States or `0.99` in Germany, or that follows a leading `0`, such as `0,990` in the
   United States or `0.500` in Germany, which would otherwise become 100 or 1000 times the
-  amount.
+  amount;
+- typed text with a period or comma the locale uses neither for decimals nor for grouping,
+  such as `1.500` in France, Sweden or Russia, which could mean 1.50 or 1500.
 
 ### Split without losing a cent
 

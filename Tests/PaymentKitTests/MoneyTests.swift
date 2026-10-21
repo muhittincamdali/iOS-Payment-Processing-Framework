@@ -274,6 +274,22 @@ struct MoneyParsingTests {
         }
     }
 
+    // A period or comma the locale uses neither as its decimal nor as its grouping separator
+    // could mean either: "1.500" in France is 1500 to someone used to German grouping and 1.50
+    // to someone used to a decimal point, so reading it as one would charge 1000 times too
+    // little or too much.
+    @Test("a period or comma the locale does not use throws", arguments: [
+        ("1.500", "fr_FR"), ("1.500", "fr_BE"), ("1.500", "fr_CA"), ("1.500", "ru_RU"), ("1.500", "pl_PL"),
+        ("1.500", "cs_CZ"), ("1.500", "sv_SE"), ("1.500", "pt_PT"), ("1.500", "fi_FI"), ("1.500", "nb_NO"),
+        ("1.500", "uk_UA"), ("1.500", "ar_SA"), ("1.500", "fa_IR"), ("1 234.500", "fr_FR"), ("1.5", "fr_FR"),
+        ("12.50", "ru_RU"), ("-1.500", "sv_SE"), ("1,500", "de_CH"), ("1,500", "ar_SA")
+    ])
+    func foreignSeparator(text: String, locale: String) {
+        #expect(throws: MoneyError.invalidText, "\(text) in \(locale)") {
+            try Money(parsing: text, currency: .eur, locale: Locale(identifier: locale))
+        }
+    }
+
     @Test("amounts below one without grouping still parse", arguments: [
         ("0.99", "en_US", Currency.usd, 99), ("0,50", "de_DE", .eur, 50), ("0.500", "en_US", .kwd, 500),
         ("0,05", "tr_TR", .try, 5), ("-0.5", "en_US", .usd, -50), ("0", "en_US", .usd, 0)
