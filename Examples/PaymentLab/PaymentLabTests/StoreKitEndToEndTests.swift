@@ -39,12 +39,16 @@ struct StoreKitEndToEndTests {
     }
 
     private func started(_ model: LabModel) async throws -> Store {
-        await model.store.start()
+        try await started(model.store)
+    }
+
+    private func started(_ store: Store) async throws -> Store {
+        await store.start()
         try #require(
-            model.store.products.count == 4,
-            "Products.storekit has four products; loaded \(model.store.products.map(\.id)), error: \(String(describing: model.store.lastError))"
+            store.products.count == 4,
+            "Products.storekit has four products; loaded \(store.products.map(\.id)), error: \(String(describing: store.lastError))"
         )
-        return model.store
+        return store
     }
 
     @Test("products load from the StoreKit configuration with exact prices")
@@ -108,6 +112,70 @@ struct StoreKitEndToEndTests {
         #expect(store.hasEntitlement("pro"))
         try session.refundTransaction(identifier: UInt(transaction.id))
         #expect(await eventually { await store.refreshEntitlements(); return !store.hasEntitlement("pro") })
+        store.stop()
+    }
+
+    // StoreKit does not tell the app about the refund of a finished consumable: it arrives
+    // neither through Transaction.updates nor as unfinished, also not after a relaunch, while the
+    // refund of a non-consumable made right after it does. Only the server learns of it, from a
+    // REFUND notification. If this test fails, StoreKit has started sending these refunds, and
+    // what the documentation says about coins and refunds must change.
+    @Test("a refund of finished coins does not reach the app, so the ledger on the device keeps them")
+    func coinsRefund() async throws {
+        let ledger = ConsumableLedger(fileURL: nil)
+        let delivered = DeliveredChanges()
+        let deliver: Store.Delivery = { change in await delivered.append(change) }
+        let store = try await started(Store(catalog: Catalog.products, client: AppStoreClient(), ledger: ledger, deliver: deliver))
+        let coins = try #require(store.product(withID: "coins.100"))
+        let lifetime = try #require(store.product(withID: "pro.lifetime"))
+        guard case .purchased(let pack) = try await store.purchase(coins),
+              case .purchased(let unlock) = try await store.purchase(lifetime)
+        else {
+            Issue.record("expected two purchases")
+            return
+        }
+        #expect(store.balance(of: "coins") == 100)
+
+        try session.refundTransaction(identifier: UInt(pack.id))
+        try session.refundTransaction(identifier: UInt(unlock.id))
+        #expect(session.allTransactions().first { $0.identifier == UInt(pack.id) }?.cancelDate != nil, "StoreKit refunded the coins")
+        #expect(await eventually(timeout: .seconds(15)) { await delivered.revokedIDs.contains(unlock.id) })
+        var unfinished: [UInt64] = []
+        for await result in Transaction.unfinished { unfinished.append(result.unsafePayloadValue.id) }
+        #expect(!unfinished.contains(pack.id))
+        store.stop()
+
+        let relaunched = Store(catalog: Catalog.products, client: AppStoreClient(), ledger: ledger, deliver: deliver)
+        await relaunched.start()
+        #expect(!relaunched.hasEntitlement("pro"))
+        let coinsRefundArrived = await eventually(timeout: .seconds(3)) { await delivered.revokedIDs.contains(pack.id) }
+        #expect(!coinsRefundArrived, "StoreKit now sends the refund of a finished consumable")
+        #expect(relaunched.balance(of: "coins") == 100)
+        relaunched.stop()
+    }
+
+    // The other side of the test above: while a pack is unfinished because its delivery failed,
+    // StoreKit does send its refund, and the ledger then credits the pack nothing.
+    @Test("a refund of coins whose delivery failed reaches the app and credits nothing")
+    func unfinishedCoinsRefund() async throws {
+        let delivered = DeliveredChanges()
+        let deliver: Store.Delivery = { change in
+            if case .granted = change { throw URLError(.notConnectedToInternet) } // the server is down
+            await delivered.append(change)
+        }
+        let store = try await started(Store(catalog: Catalog.products, client: AppStoreClient(), ledger: ConsumableLedger(fileURL: nil), deliver: deliver))
+        let coins = try #require(store.product(withID: "coins.100"))
+        await #expect(throws: StoreError.self) { try await store.purchase(coins) }
+        var unfinished: [UInt64] = []
+        for await result in Transaction.unfinished { unfinished.append(result.unsafePayloadValue.id) }
+        let pack = try #require(unfinished.first)
+
+        try session.refundTransaction(identifier: UInt(pack))
+        #expect(await eventually(timeout: .seconds(15)) { await delivered.revokedIDs.contains(pack) })
+        unfinished = []
+        for await result in Transaction.unfinished { unfinished.append(result.unsafePayloadValue.id) }
+        #expect(unfinished.isEmpty, "the refund is finished, and the purchase with it")
+        #expect(store.balance(of: "coins") == 0)
         store.stop()
     }
 
@@ -212,4 +280,17 @@ func eventually(timeout: Duration = .seconds(10), _ condition: @MainActor () asy
         try? await Task.sleep(for: .milliseconds(100))
     }
     return await condition()
+}
+
+/// The changes a test's `deliver` closure received.
+actor DeliveredChanges {
+    private(set) var changes: [TransactionChange] = []
+
+    func append(_ change: TransactionChange) {
+        changes.append(change)
+    }
+
+    var revokedIDs: Set<UInt64> {
+        Set(changes.compactMap { if case .revoked(let transaction) = $0 { transaction.id } else { nil } })
+    }
 }
