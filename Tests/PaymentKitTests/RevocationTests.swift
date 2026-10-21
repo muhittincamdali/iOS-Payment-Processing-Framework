@@ -120,6 +120,47 @@ struct RevocationTests {
         #expect(store.balance(of: "coins") == 0)
         store.stop()
     }
+
+    // An app update can drop a consumable from the catalog, leave it to `deliver`, or change
+    // its credit; the coins its purchases credited are still in the ledger and must go back.
+    @Test("a refund takes back what the ledger credited after an update changed the product", arguments: [
+        [ProductDefinition](), // no longer sold
+        [.consumable("coins.100")], // handed out by deliver now
+        [.consumable("coins.100", credits: 0, to: "coins")], // a credit the ledger refuses
+        [.consumable("coins.100", credits: 50, to: "gems")]
+    ])
+    func refundAfterCatalogChange(updatedCatalog: [ProductDefinition]) async throws {
+        let url = temporaryLedgerURL()
+        defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
+        let clock = clock
+        let recorder = recorder
+        let pack = StoreTransaction(id: 21, productID: "coins.100", productKind: .consumable, purchaseDate: clock.now, purchasedQuantity: 10)
+
+        let firstVersion = Store(catalog: Fixtures.catalog, client: client, ledger: ConsumableLedger(fileURL: url), now: { clock.now }) { try recorder.deliver($0) }
+        await firstVersion.start()
+        await client.send(pack)
+        #expect(await eventually { await client.finishedTransactionIDs == [pack.id] })
+        #expect(firstVersion.balance(of: "coins") == 1_000)
+        firstVersion.stop()
+
+        let updatedClient = ScriptedClient()
+        let updated = Store(catalog: updatedCatalog, client: updatedClient, ledger: ConsumableLedger(fileURL: url), now: { clock.now }) { try recorder.deliver($0) }
+        await updated.start()
+        let refund = pack.revoked(at: clock.now)
+        await updatedClient.send(refund)
+        await updatedClient.send(refund) // a repeat takes back nothing more
+        let season = StoreTransaction(id: 22, productID: "season.pass", productKind: .nonRenewable, purchaseDate: clock.now)
+        await updatedClient.send(season) // updates are handled in order, so this one is handled last
+        #expect(await eventually { await updatedClient.finishedTransactionIDs.contains(season.id) })
+        #expect(await updatedClient.finishedTransactionIDs == [pack.id, season.id])
+
+        #expect(updated.lastError == nil)
+        #expect(try await ConsumableLedger(fileURL: url).balances()["coins"] == 0, "the ledger file still holds the refunded coins")
+        #expect(updated.balance(of: "coins") == 0)
+        #expect(updated.balance(of: "gems") == 0)
+        #expect(recorder.changes == [.granted(pack), .revoked(refund), .granted(season)])
+        updated.stop()
+    }
 }
 
 /// Holds a delivery until the test opens it.

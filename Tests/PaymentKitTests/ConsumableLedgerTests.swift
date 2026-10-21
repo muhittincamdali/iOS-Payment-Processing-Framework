@@ -25,6 +25,17 @@ struct ConsumableLedgerTests {
         #expect(try await ledger.balances() == ["coins": 0])
     }
 
+    @Test("a refund by transaction takes back the recorded credit once and remembers nothing new")
+    func revokeRecordedCredit() async throws {
+        let ledger = ConsumableLedger(fileURL: nil)
+        try await ledger.credit(1_000, to: "coins", for: 1)
+        #expect(try await ledger.revoke(transactionID: 1))
+        #expect(try await ledger.revoke(transactionID: 1), "a repeat is known and takes back nothing more")
+        #expect(try await ledger.balances() == ["coins": 0])
+        #expect(try await !ledger.revoke(transactionID: 2))
+        #expect(try await !ledger.hasHandled(2), "an unknown transaction is left to the catalog's credit")
+    }
+
     @Test("a refund that arrives before its purchase makes the purchase credit nothing")
     func refundBeforePurchase() async throws {
         let ledger = ConsumableLedger(fileURL: nil)

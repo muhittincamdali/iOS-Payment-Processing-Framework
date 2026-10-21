@@ -28,7 +28,9 @@ import Observation
 /// current verified transactions, so a refund, a revocation, an expiry or an upgrade removes it.
 /// A refund reaches `deliver` as ``TransactionChange/revoked(_:)``, never as a new grant, and
 /// ``entitlements`` is recomputed before that call too, so the access ends even when `deliver`
-/// throws and the refund stays unfinished until it is delivered.
+/// throws and the refund stays unfinished until it is delivered. A consumable's refund takes back
+/// what the ledger credited for that transaction, even after an app update removed the product
+/// from the catalog or changed its credit.
 ///
 /// A refund or revocation is final while the store runs: a copy of the same transaction without
 /// a revocation date that arrives after it, because StoreKit read it before the refund, is not
@@ -329,6 +331,13 @@ public final class Store {
     /// Credits a consumable purchase to the ledger, or takes a refunded one back.
     private func applyCredit(of change: TransactionChange) async throws {
         let transaction = change.transaction
+        // A refund takes back what the ledger recorded, not what the catalog says now: an app
+        // update may have removed the product, left it to `deliver` or changed its credit.
+        if case .revoked = change, transaction.productKind == .consumable,
+           try await ledger.revoke(transactionID: transaction.id) {
+            balances = try await ledger.balances()
+            return
+        }
         guard let credit = credits[transaction.productID] else { return }
         // purchasedQuantity is at most PurchaseOptions.maximumQuantity, so the conversion is exact.
         let (amount, overflow) = credit.amount.multipliedReportingOverflow(by: Int64(transaction.purchasedQuantity))

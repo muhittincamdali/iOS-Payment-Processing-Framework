@@ -91,17 +91,23 @@ public actor ConsumableLedger {
         try Self.check(amount: amount, account: account)
         var next = try loaded()
         if let record = next.records[transactionID] {
-            guard !record.isRevoked else { return false }
-            let (difference, overflow) = next.balance(of: record.account).subtractingReportingOverflow(record.amount)
-            guard !overflow else { throw .overflow(account: record.account) }
-            next.balances[record.account] = difference
-            next.records[transactionID] = LedgerState.Record(account: record.account, amount: record.amount, isRevoked: true)
-            try save(next)
-            return true
+            return try takeBack(record, of: transactionID)
         }
         next.remember(transactionID, LedgerState.Record(account: account, amount: amount, isRevoked: true))
         try save(next)
         return false
+    }
+
+    /// Takes back what a refunded transaction credited, from the account and amount the ledger
+    /// recorded for it, once. ``Store`` uses it for refunds so that the credit goes back in full
+    /// even after an app update removed the product from the catalog or changed its credit.
+    ///
+    /// - Returns: `false` when the ledger has no record of the transaction; a repeated refund
+    ///   returns `true` and takes back nothing more.
+    func revoke(transactionID: UInt64) throws(Failure) -> Bool {
+        guard let record = try loaded().records[transactionID] else { return false }
+        try takeBack(record, of: transactionID)
+        return true
     }
 
     /// Spends `amount` from `account`.
@@ -122,6 +128,21 @@ public actor ConsumableLedger {
     /// Whether the ledger has handled the transaction, as a credit or a refund.
     public func hasHandled(_ transactionID: UInt64) throws(Failure) -> Bool {
         try loaded().records[transactionID] != nil
+    }
+
+    /// Subtracts a recorded credit and marks it revoked, unless it was revoked already.
+    ///
+    /// - Returns: Whether the balance changed.
+    @discardableResult
+    private func takeBack(_ record: LedgerState.Record, of transactionID: UInt64) throws(Failure) -> Bool {
+        guard !record.isRevoked else { return false }
+        var next = try loaded()
+        let (difference, overflow) = next.balance(of: record.account).subtractingReportingOverflow(record.amount)
+        guard !overflow else { throw .overflow(account: record.account) }
+        next.balances[record.account] = difference
+        next.records[transactionID] = LedgerState.Record(account: record.account, amount: record.amount, isRevoked: true)
+        try save(next)
+        return true
     }
 
     // MARK: Storage

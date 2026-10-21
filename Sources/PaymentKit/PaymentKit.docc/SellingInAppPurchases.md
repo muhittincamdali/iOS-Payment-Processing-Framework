@@ -76,7 +76,9 @@ StoreKit sends the transaction again on the next launch and the ledger credits n
 
 A refund takes the credit back once, even if the coins were spent; the balance can then be
 below zero, and ``Store/spend(_:of:)`` refuses until it is positive again. Decide what else that
-means in your app.
+means in your app. The ledger takes back the balance and amount it recorded for the purchase, so
+a refund still counts after an app update removed the product from the catalog, left it to
+`deliver` or changed its credit.
 
 Your `deliver` closure runs at least once per transaction, so whatever it does must accept
 repeats; the example receipt server keys everything on the transaction identifier.
