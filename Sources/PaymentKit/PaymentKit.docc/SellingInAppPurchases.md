@@ -49,7 +49,9 @@ StoreKit sends, or from the unfinished transactions at launch, takes the same pa
    for a refund.
 4. Only after both succeed is the transaction finished. If either throws, the transaction stays
    unfinished and StoreKit sends it again on the next ``Store/start()``.
-5. ``Store/entitlements`` is recomputed from StoreKit's current entitlements.
+5. ``Store/entitlements`` is recomputed from StoreKit's current entitlements. For a refund it
+   is also recomputed before step 2, so the refunded access ends even when `deliver` throws and
+   the refund waits, unfinished, to be delivered again.
 
 ### Refunds, repeats and restarts
 

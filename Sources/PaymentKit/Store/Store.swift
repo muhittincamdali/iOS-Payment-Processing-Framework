@@ -26,7 +26,9 @@ import Observation
 ///
 /// Access is never accumulated: ``entitlements`` is always computed again from StoreKit's
 /// current verified transactions, so a refund, a revocation, an expiry or an upgrade removes it.
-/// A refund reaches `deliver` as ``TransactionChange/revoked(_:)``, never as a new grant.
+/// A refund reaches `deliver` as ``TransactionChange/revoked(_:)``, never as a new grant, and
+/// ``entitlements`` is recomputed before that call too, so the access ends even when `deliver`
+/// throws and the refund stays unfinished until it is delivered.
 ///
 /// A refund or revocation is final while the store runs: a copy of the same transaction without
 /// a revocation date that arrives after it, because StoreKit read it before the refund, is not
@@ -279,7 +281,8 @@ public final class Store {
     }
 
     /// Delivers, credits and finishes a verified transaction once, then recomputes the
-    /// entitlements.
+    /// entitlements. A refund recomputes them before delivery too, so its access ends even
+    /// when the delivery throws.
     private func process(_ transaction: StoreTransaction) async throws {
         let key = TransactionKey(transaction)
         if key.isRevoked {
@@ -299,6 +302,11 @@ public final class Store {
         inFlight.insert(key)
         defer { inFlight.remove(key) }
 
+        if key.isRevoked {
+            // Access ends before delivery: a refund whose delivery throws stays unfinished and
+            // comes again later, but grants nothing meanwhile. revokedIDs already holds it.
+            await refreshEntitlements()
+        }
         let change = TransactionChange(transaction)
         try await deliver?(change)
         try await applyCredit(of: change)

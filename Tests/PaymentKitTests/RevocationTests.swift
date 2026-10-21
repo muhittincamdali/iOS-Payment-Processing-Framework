@@ -54,6 +54,39 @@ struct RevocationTests {
         #expect(store.entitlements.isEmpty)
         store.stop()
     }
+
+    @Test("a refund ends access at once even when its delivery fails, and is delivered when it comes again")
+    func refundWhoseDeliveryFails() async throws {
+        let clock = clock
+        let appStore = TestStoreClient(products: Fixtures.products) { clock.now }
+        let recorder = recorder
+        let store = Store(catalog: Fixtures.catalog, client: appStore, ledger: ConsumableLedger(fileURL: nil), now: { clock.now }) { try recorder.deliver($0) }
+        await store.start()
+        guard case .purchased(let lifetime) = try await store.purchase(Fixtures.lifetime),
+              case .purchased(let yearly) = try await store.purchase(Fixtures.yearly)
+        else {
+            Issue.record("expected two purchases")
+            return
+        }
+        #expect(store.entitlements.map(\.transactionID) == [lifetime.id])
+
+        recorder.setFailing(true) // the receipt server cannot be reached
+        let refunded = try await appStore.refund(lifetime.id)
+        #expect(await eventually { store.lastError == .deliveryFailed(transactionID: lifetime.id, reason: "The wallet service is offline.") })
+        #expect(store.entitlements.map(\.transactionID) == [yearly.id], "a refund whose delivery failed must not keep the lifetime purchase's access")
+        #expect(await appStore.finishedTransactionIDs == [lifetime.id, yearly.id], "the refund is not finished, so it comes again")
+
+        try await appStore.refund(yearly.id)
+        #expect(await eventually { store.entitlements.isEmpty })
+        #expect(!store.hasEntitlement("pro"))
+
+        recorder.setFailing(false)
+        try await appStore.redeliver(lifetime.id)
+        #expect(await eventually { await appStore.finishedTransactionIDs == [lifetime.id, yearly.id, lifetime.id] })
+        #expect(recorder.changes == [.granted(lifetime), .granted(yearly), .revoked(refunded)])
+        #expect(!store.hasEntitlement("pro"))
+        store.stop()
+    }
 }
 
 /// A client whose updates and entitlements the test sets by hand, so copies of one transaction

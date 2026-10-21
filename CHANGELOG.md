@@ -85,6 +85,9 @@ results; they are removed (see "Removed").
 - A refund or revocation is final while a `Store` runs: a copy of the same transaction from
   before the refund that arrives after it is not delivered, credited or finished, and grants no
   access even while StoreKit still lists it.
+- A refund ends access before it is delivered: when `deliver` throws, for example because the
+  server cannot be reached, the refund stays unfinished and is delivered later, but the refunded
+  purchase grants nothing meanwhile.
 - The example receipt server keeps a refund: once a revoked copy of a transaction is recorded, no
   other copy replaces it, so posting the signed purchase from before the refund again restores
   neither the access nor the coins. Other copies replace the stored one only when Apple signed
