@@ -1,4 +1,4 @@
-<!-- i18n-source: README.md@990b0d59d8052c4abeb0467da7b7bd8923006712 status=reviewed -->
+<!-- i18n-source: README.md@fb21cbfe1d3b9a712c773a9b4655c86c31cf1901 status=reviewed -->
 <!-- brand:start -->
 
 <p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/muhittincamdali/iOS-Payment-Processing-Framework/master/.github/brand/banner-dark.svg"><source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/muhittincamdali/iOS-Payment-Processing-Framework/master/.github/brand/banner-light.svg"><img src="https://raw.githubusercontent.com/muhittincamdali/iOS-Payment-Processing-Framework/master/.github/brand/banner-light.svg" alt="PaymentKit: Sell in-app purchases with StoreKit 2, take Apple Pay and keep money exact on Apple platforms."></picture></p>
@@ -35,7 +35,7 @@ PaymentKit は、Apple プラットフォーム向けアプリの決済コード
 - **正確な金額** — `Money` は ISO 4217 通貨の最小単位で金額を保持します。小数桁が多すぎる場合、`NaN`、オーバーフロー、通貨の混在は、丸めたりクラッシュしたりせずにエラーをスローし、分割しても 1 セントも失われません。
 - **検証済みの Apple Pay リクエスト** — `ApplePayRequest` は、PassKit に渡す前に加盟店、通貨、ラベル、合計を検証し、`ApplePayController` は async/await で支払い結果を報告します。
 - **漏れないカード情報** — `CardNumber`、`CardSecurityCode`、`CardForm` は入力（ブランド、桁数、Luhn、有効期限）を検証し、ログ、`dump`、デバッガでは `•••• 4242` と表示されます。
-- **エンドツーエンドでテスト済み** — macOS と iPhone シミュレータで 134 件の Swift Testing テスト、サンプルアプリで 11 件の StoreKit テストと 4 件の UI テスト（Xcode 経由の本物の StoreKit と本物の Apple Pay シート）、レシートサーバーで 38 件のテストを実施しています。
+- **エンドツーエンドでテスト済み** — macOS と iPhone シミュレータで 136 件の Swift Testing テスト、サンプルアプリで 11 件の StoreKit テストと 4 件の UI テスト（Xcode 経由の本物の StoreKit と本物の Apple Pay シート）、レシートサーバーで 38 件のテストを実施しています。
 
 ## クイックスタート
 
@@ -116,7 +116,7 @@ targets: [
 
 ### アプリ内課金を販売する
 
-アプリの起動時に `Store` を 1 つ作成し、すぐに `start()` を呼び出します。検証済みの新しいトランザクションと返金は、StoreKit が完了させる前にすべて `deliver` を通ります。ここでエラーをスローするとトランザクションは未完了のままになり、StoreKit は次回の起動時にもう一度配信します。
+アプリの起動時に `Store` を 1 つ作成し、すぐに `start()` を呼び出します。検証済みの新しいトランザクションと返金は、StoreKit が完了させる前にすべて `deliver` を通ります。ここでエラーをスローするとトランザクションは未完了のままになり、StoreKit は次回の起動時にもう一度配信します。返金のアクセスとコインは `deliver` の実行前に取り消されます。購入の完了処理中に届いた返金は、その購入と一緒に完了し、もう一度届くことはないためです。
 
 ```swift
 @MainActor

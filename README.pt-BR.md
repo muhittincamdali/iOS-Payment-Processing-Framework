@@ -1,4 +1,4 @@
-<!-- i18n-source: README.md@990b0d59d8052c4abeb0467da7b7bd8923006712 status=reviewed -->
+<!-- i18n-source: README.md@fb21cbfe1d3b9a712c773a9b4655c86c31cf1901 status=reviewed -->
 <!-- brand:start -->
 
 <p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/muhittincamdali/iOS-Payment-Processing-Framework/master/.github/brand/banner-dark.svg"><source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/muhittincamdali/iOS-Payment-Processing-Framework/master/.github/brand/banner-light.svg"><img src="https://raw.githubusercontent.com/muhittincamdali/iOS-Payment-Processing-Framework/master/.github/brand/banner-light.svg" alt="PaymentKit: Sell in-app purchases with StoreKit 2, take Apple Pay and keep money exact on Apple platforms."></picture></p>
@@ -35,7 +35,7 @@ O PaymentKit é um pacote Swift para o código de pagamento de apps nas platafor
 - **Dinheiro exato** — o `Money` guarda as unidades menores de uma moeda ISO 4217; casas decimais demais, `NaN`, estouro e moedas misturadas lançam um erro em vez de arredondar ou travar, e as divisões nunca perdem um centavo.
 - **Requisições de Apple Pay verificadas** — o `ApplePayRequest` valida o comerciante, a moeda, os rótulos e os totais antes que o PassKit os veja, e o `ApplePayController` informa o pagamento com async/await.
 - **Dados de cartão que não vazam** — `CardNumber`, `CardSecurityCode` e `CardForm` validam a entrada (bandeira, tamanho, Luhn, validade) e aparecem como `•••• 4242` em logs, no `dump` e no depurador.
-- **Testado de ponta a ponta** — 134 testes de Swift Testing no macOS e em um simulador de iPhone, 11 testes de StoreKit e 4 testes de UI no app de exemplo (StoreKit real pelo Xcode, a folha real do Apple Pay) e 38 testes para o servidor de recibos.
+- **Testado de ponta a ponta** — 136 testes de Swift Testing no macOS e em um simulador de iPhone, 11 testes de StoreKit e 4 testes de UI no app de exemplo (StoreKit real pelo Xcode, a folha real do Apple Pay) e 38 testes para o servidor de recibos.
 
 ## Início rápido
 
@@ -116,7 +116,7 @@ que o app de exemplo e os testes do pacote compilam.
 
 ### Vendendo compras dentro do app
 
-Crie um único `Store` quando o app iniciar e chame `start()` logo em seguida. Toda nova transação verificada e todo reembolso passam por `deliver` antes de o StoreKit finalizá-los; lançar um erro ali mantém a transação sem finalizar, e o StoreKit a entrega de novo na próxima abertura do app.
+Crie um único `Store` quando o app iniciar e chame `start()` logo em seguida. Toda nova transação verificada e todo reembolso passam por `deliver` antes de o StoreKit finalizá-los; lançar um erro ali mantém a transação sem finalizar, e o StoreKit a entrega de novo na próxima abertura do app. O acesso e as moedas de um reembolso acabam antes de `deliver` rodar, porque um reembolso que chega enquanto a compra está sendo finalizada é finalizado junto com ela e não volta.
 
 ```swift
 @MainActor

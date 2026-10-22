@@ -1,4 +1,4 @@
-<!-- i18n-source: README.md@990b0d59d8052c4abeb0467da7b7bd8923006712 status=reviewed -->
+<!-- i18n-source: README.md@fb21cbfe1d3b9a712c773a9b4655c86c31cf1901 status=reviewed -->
 <!-- brand:start -->
 
 <p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/muhittincamdali/iOS-Payment-Processing-Framework/master/.github/brand/banner-dark.svg"><source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/muhittincamdali/iOS-Payment-Processing-Framework/master/.github/brand/banner-light.svg"><img src="https://raw.githubusercontent.com/muhittincamdali/iOS-Payment-Processing-Framework/master/.github/brand/banner-light.svg" alt="PaymentKit: Sell in-app purchases with StoreKit 2, take Apple Pay and keep money exact on Apple platforms."></picture></p>
@@ -35,7 +35,7 @@ PaymentKit ist ein Swift-Paket für den Zahlungscode von Apps auf Apple-Plattfor
 - **Exakte Beträge** — `Money` speichert die kleinste Einheit einer ISO-4217-Währung; zu viele Nachkommastellen, `NaN`, Überlauf und gemischte Währungen werfen einen Fehler, statt zu runden oder abzustürzen, und bei Aufteilungen geht nie ein Cent verloren.
 - **Geprüfte Apple-Pay-Anfragen** — `ApplePayRequest` validiert Händler, Währung, Beschriftungen und Summen, bevor PassKit sie sieht, und `ApplePayController` meldet die Zahlung per async/await.
 - **Kartendaten, die nicht durchsickern** — `CardNumber`, `CardSecurityCode` und `CardForm` validieren Eingaben (Marke, Länge, Luhn, Ablaufdatum) und werden in Logs, bei `dump` und im Debugger als `•••• 4242` ausgegeben.
-- **Durchgängig getestet** — 134 Swift-Testing-Tests unter macOS und in einem iPhone-Simulator, 11 StoreKit-Tests und 4 UI-Tests in der Beispiel-App (echtes StoreKit über Xcode, das echte Apple-Pay-Sheet) sowie 38 Tests für den Receipt-Server.
+- **Durchgängig getestet** — 136 Swift-Testing-Tests unter macOS und in einem iPhone-Simulator, 11 StoreKit-Tests und 4 UI-Tests in der Beispiel-App (echtes StoreKit über Xcode, das echte Apple-Pay-Sheet) sowie 38 Tests für den Receipt-Server.
 
 ## Schnellstart
 
@@ -116,7 +116,7 @@ das die Beispiel-App und die Tests des Pakets kompilieren.
 
 ### In-App-Käufe verkaufen
 
-Erstelle genau einen `Store`, wenn die App startet, und rufe sofort `start()` auf. Jede neue verifizierte Transaktion und jede Rückerstattung läuft durch `deliver`, bevor StoreKit sie abschließt; wirft `deliver` einen Fehler, bleibt die Transaktion unabgeschlossen, und StoreKit liefert sie beim nächsten Start erneut aus.
+Erstelle genau einen `Store`, wenn die App startet, und rufe sofort `start()` auf. Jede neue verifizierte Transaktion und jede Rückerstattung läuft durch `deliver`, bevor StoreKit sie abschließt; wirft `deliver` einen Fehler, bleibt die Transaktion unabgeschlossen, und StoreKit liefert sie beim nächsten Start erneut aus. Zugang und Münzen einer Rückerstattung enden, bevor `deliver` läuft, denn eine Rückerstattung, die eintrifft, während ihr Kauf gerade abgeschlossen wird, wird mit ihm abgeschlossen und kommt nicht erneut an.
 
 ```swift
 @MainActor
