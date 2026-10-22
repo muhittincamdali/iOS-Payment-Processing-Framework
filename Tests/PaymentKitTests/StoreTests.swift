@@ -250,12 +250,24 @@ struct StoreTests {
         store.stop()
     }
 
+    /// `Result(catching:)` takes no async closure before Swift 6.4, so the two racing purchases
+    /// are wrapped by hand.
+    private func outcome(
+        _ operation: () async throws(StoreError) -> Store.PurchaseOutcome
+    ) async -> Result<Store.PurchaseOutcome, StoreError> {
+        do throws(StoreError) {
+            return .success(try await operation())
+        } catch {
+            return .failure(error)
+        }
+    }
+
     @Test("a second purchase while the sheet shows is refused")
     func purchaseInProgress() async throws {
         let store = makeStore()
         await store.start()
-        async let first = Result { () async throws(StoreError) in try await store.purchase(Fixtures.lifetime) }
-        async let second = Result { () async throws(StoreError) in try await store.purchase(Fixtures.monthly) }
+        async let first = outcome { () async throws(StoreError) in try await store.purchase(Fixtures.lifetime) }
+        async let second = outcome { () async throws(StoreError) in try await store.purchase(Fixtures.monthly) }
         let results = await [first, second]
         let refused = results.filter { if case .failure(.purchaseInProgress) = $0 { true } else { false } }
         #expect(refused.count == 1)
