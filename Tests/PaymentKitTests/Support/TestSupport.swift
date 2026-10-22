@@ -49,9 +49,10 @@ final class DeliveryRecorder: @unchecked Sendable {
     }
 }
 
-/// Waits until `condition` holds, for work that arrives through an `AsyncStream`.
+/// Waits until `condition` holds, for work that arrives through an `AsyncStream`. It returns as
+/// soon as the condition holds, so the long limit only matters on a slow machine.
 @MainActor
-func eventually(timeout: Duration = .seconds(5), _ condition: @MainActor () async -> Bool) async -> Bool {
+func eventually(timeout: Duration = .seconds(30), _ condition: @MainActor () async -> Bool) async -> Bool {
     let clock = ContinuousClock()
     let deadline = clock.now + timeout
     while clock.now < deadline {
