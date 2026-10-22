@@ -75,7 +75,7 @@ final class PaymentLabUITests: XCTestCase {
         enter("4242424242424241", into: number)
         enter("13/30", into: app.textFields["card.expiry"])
         enter("12", into: app.textFields["card.code"])
-        app.buttons["card.check"].tap()
+        tapWhenSettled(app.buttons["card.check"])
         XCTAssertTrue(waitForText("Check the card number for a typo.", timeout: 5))
         XCTAssertTrue(waitForText("The expiry month must be 01 to 12.", timeout: 5))
         XCTAssertTrue(waitForText("The security code has 3 digits.", timeout: 5))
@@ -89,7 +89,7 @@ final class PaymentLabUITests: XCTestCase {
         enter("09/30", into: app.textFields["card.expiry"])
         clear(app.textFields["card.code"])
         enter("1234", into: app.textFields["card.code"])
-        app.buttons["card.check"].tap()
+        tapWhenSettled(app.buttons["card.check"])
         XCTAssertTrue(waitForText("americanExpress •••• 0005 09/30", timeout: 5))
     }
 
@@ -115,6 +115,21 @@ final class PaymentLabUITests: XCTestCase {
                 RunLoop.current.run(until: Date().addingTimeInterval(0.05))
             }
         }
+    }
+
+    /// Taps once the button is hittable and has stopped moving. The form scrolls while the
+    /// keyboard slides in; on a slow simulator a tap that came during that scroll never reached
+    /// "Check Card": the failed run's hierarchy still showed the keyboard and no error message.
+    private func tapWhenSettled(_ button: XCUIElement) {
+        var previous = CGRect.null
+        let deadline = Date().addingTimeInterval(10)
+        while Date() < deadline {
+            let frame = button.frame
+            if button.isHittable, frame == previous { break }
+            previous = frame
+            RunLoop.current.run(until: Date().addingTimeInterval(0.3))
+        }
+        button.tap()
     }
 
     private func clear(_ field: XCUIElement) {
