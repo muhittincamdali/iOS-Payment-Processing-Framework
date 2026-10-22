@@ -19,9 +19,24 @@ struct PaymentLabApp: App {
             LabView(model: model)
                 .tint(.labBlue)
                 // Start listening for transactions as soon as the app runs.
-                .task { await model.store.start() }
+                .task {
+                    guard Self.startsStore(in: ProcessInfo.processInfo.environment) else { return }
+                    await model.store.start()
+                }
         }
     }
+
+    /// Whether the app starts its store when it launches: not when it only hosts the unit tests.
+    ///
+    /// The tests run in the app's process, so the app's store would receive their transactions
+    /// from `Transaction.updates` too, deliver them and finish them, such as a refund that a
+    /// test waits for or a purchase that a test leaves unfinished.
+    static func startsStore(in environment: [String: String]) -> Bool {
+        environment[hostedTestsKey] == nil
+    }
+
+    /// Set in a process that hosts unit tests; not in the app that the UI tests launch.
+    private static let hostedTestsKey = "XCTestConfigurationFilePath"
 
     private static func freshDefaults() -> UserDefaults {
         let name = "PaymentLab.UITests"

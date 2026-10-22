@@ -18,6 +18,10 @@ struct StoreKitEndToEndTests {
 
     init() async throws {
         session = try SKTestSession(configurationFileNamed: "Products")
+        // The app does not ask StoreKit for transactions while it hosts these tests. When the
+        // first request of the run came only after clearTransactions(), StoreKit kept the
+        // entitlements of the previous run; asking once before clearing avoids that.
+        for await _ in Transaction.currentEntitlements {}
         session.resetToDefaultState()
         session.storefront = "USA"
         session.disableDialogs = true
@@ -49,6 +53,14 @@ struct StoreKitEndToEndTests {
             "Products.storekit has four products; loaded \(store.products.map(\.id)), error: \(String(describing: store.lastError))"
         )
         return store
+    }
+
+    // These tests run in the app's process: a running app store would handle their
+    // transactions too, finishing a refund before the test's store receives it.
+    @Test("the app hosting these tests leaves StoreKit to them")
+    func hostAppLeavesStoreKitAlone() {
+        #expect(!PaymentLabApp.startsStore(in: ProcessInfo.processInfo.environment))
+        #expect(PaymentLabApp.startsStore(in: [:]))
     }
 
     @Test("products load from the StoreKit configuration with exact prices")

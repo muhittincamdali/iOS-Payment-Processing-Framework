@@ -91,6 +91,14 @@ jobs:
           xcrun simctl shutdown "$udid"
           xcrun simctl boot "$udid"
           xcrun simctl bootstatus "$udid" -b
+          # StoreKit applies Products.storekit fully only to processes that start after a test
+          # registered it on the simulator, and each test run registers it from inside its own
+          # process. On a simulator that never ran these tests, the first purchase of the first
+          # run asks to sign in to a sandbox account and the run waits there. A run of the
+          # products test, which buys nothing, registers the file first.
+          xcodebuild test -project PaymentLab.xcodeproj -scheme PaymentLab \
+            -destination "id=$udid" -skipPackagePluginValidation -skipMacroValidation -quiet \
+            -only-testing:'PaymentLabTests/StoreKitEndToEndTests/products()'
           xcodebuild test -project PaymentLab.xcodeproj -scheme PaymentLab \
             -destination "id=$udid" -skipPackagePluginValidation -skipMacroValidation -quiet \
             -resultBundlePath "$RUNNER_TEMP/PaymentLab.xcresult"

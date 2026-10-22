@@ -56,6 +56,13 @@ TEST_RUNNER_PAYMENTLAB_SERVER_URL=http://127.0.0.1:8787 \
 ```
 
 Without `TEST_RUNNER_PAYMENTLAB_SERVER_URL`, the server test is skipped.
+The app does not start its own store while it hosts `PaymentLabTests`, so only the tests handle
+their transactions. On a simulator that has never run these tests, run one test first, such as
+`-only-testing:'PaymentLabTests/StoreKitEndToEndTests/products()'`: StoreKit applies
+`Products.storekit` fully only to processes that start after a test registered it on the
+simulator, and each run registers it from inside its own process, so the first purchase of the
+first run asks to sign in to a sandbox account and the run waits there. The Examples workflow
+runs the products test first for this reason.
 [`scripts/capture-screenshots.sh`](../scripts/capture-screenshots.sh) runs the UI tests in light
 and dark appearance and saves the README screenshots.
 
