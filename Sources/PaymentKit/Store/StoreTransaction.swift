@@ -1,0 +1,116 @@
+import Foundation
+
+/// A purchase, renewal or refund from the App Store, as a value.
+public struct StoreTransaction: Identifiable, Hashable, Sendable {
+    /// The transaction identifier.
+    public let id: UInt64
+    /// The identifier of the first purchase; renewals and restores share it.
+    public let originalID: UInt64
+    public let productID: String
+    public let productKind: StoreProduct.Kind
+    public let purchaseDate: Date
+    /// When a subscription period ends; `nil` for other products.
+    public let expirationDate: Date?
+    /// When the Billing Grace Period of an auto-renewable subscription ends: the App Store could
+    /// not renew it and still grants access until then. `nil` when it is not in one.
+    ///
+    /// It comes from the subscription's verified renewal status, not from the transaction:
+    /// ``AppStoreClient`` sets it on the transactions of ``StoreClient/currentEntitlements()``
+    /// whose subscription is in its grace period, and ``EntitlementResolver`` then grants access
+    /// until this date instead of ``expirationDate``.
+    public let gracePeriodExpirationDate: Date?
+    /// When the App Store refunded or revoked the purchase; access must end.
+    public let revocationDate: Date?
+    /// Whether the person moved to a higher subscription in the same group.
+    public let isUpgraded: Bool
+    /// Whether a family member bought it and Family Sharing shares it.
+    public let isFamilyShared: Bool
+    /// How many units of a consumable were bought, 1 to ``PurchaseOptions/maximumQuantity``.
+    ///
+    /// Values outside StoreKit's limit are clamped, so `coins * purchasedQuantity` cannot
+    /// overflow on a malformed transaction.
+    public let purchasedQuantity: Int
+    /// `"Production"`, `"Sandbox"` or `"Xcode"`, as the App Store reports it.
+    public let environment: String
+    /// The UUID your app passed when purchasing, to link the purchase to an account.
+    public let appAccountToken: UUID?
+    /// The signed transaction (JWS) to send to your server, which verifies it with
+    /// App Store Server Library before it grants anything.
+    public let signedTransaction: String
+
+    public init(
+        id: UInt64,
+        originalID: UInt64? = nil,
+        productID: String,
+        productKind: StoreProduct.Kind,
+        purchaseDate: Date,
+        expirationDate: Date? = nil,
+        gracePeriodExpirationDate: Date? = nil,
+        revocationDate: Date? = nil,
+        isUpgraded: Bool = false,
+        isFamilyShared: Bool = false,
+        purchasedQuantity: Int = 1,
+        environment: String = "Xcode",
+        appAccountToken: UUID? = nil,
+        signedTransaction: String = ""
+    ) {
+        self.id = id
+        self.originalID = originalID ?? id
+        self.productID = productID
+        self.productKind = productKind
+        self.purchaseDate = purchaseDate
+        self.expirationDate = expirationDate
+        self.gracePeriodExpirationDate = gracePeriodExpirationDate
+        self.revocationDate = revocationDate
+        self.isUpgraded = isUpgraded
+        self.isFamilyShared = isFamilyShared
+        self.purchasedQuantity = min(max(purchasedQuantity, 1), PurchaseOptions.maximumQuantity)
+        self.environment = environment
+        self.appAccountToken = appAccountToken
+        self.signedTransaction = signedTransaction
+    }
+}
+
+/// A transaction together with the result of StoreKit's signature check.
+public struct TransactionEvent: Hashable, Sendable {
+    /// Whether StoreKit could verify the App Store's signature.
+    public enum Verification: Hashable, Sendable {
+        case verified
+        /// The signature or device check failed; never grant content for it.
+        case unverified(reason: String)
+    }
+
+    public let transaction: StoreTransaction
+    public let verification: Verification
+
+    public init(transaction: StoreTransaction, verification: Verification) {
+        self.transaction = transaction
+        self.verification = verification
+    }
+
+    public var isVerified: Bool { verification == .verified }
+}
+
+/// What ``Store`` hands to its `deliver` closure: a transaction to grant, or a refund to take
+/// back.
+///
+/// The cases are separate so a refund can never be mistaken for a new purchase: a refunded
+/// transaction arrives again with the same identifier and a ``StoreTransaction/revocationDate``.
+public enum TransactionChange: Hashable, Sendable {
+    /// A new verified purchase, renewal, Ask to Buy approval or purchase on another device.
+    case granted(StoreTransaction)
+    /// The App Store refunded or revoked a transaction (also when Family Sharing stops); take
+    /// back what ``granted(_:)`` gave.
+    case revoked(StoreTransaction)
+
+    /// The transaction, whichever the case.
+    public var transaction: StoreTransaction {
+        switch self {
+        case .granted(let transaction), .revoked(let transaction): transaction
+        }
+    }
+
+    init(_ transaction: StoreTransaction) {
+        self = transaction.revocationDate == nil ? .granted(transaction) : .revoked(transaction)
+    }
+}

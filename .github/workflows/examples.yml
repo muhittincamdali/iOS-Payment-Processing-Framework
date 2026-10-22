@@ -1,0 +1,122 @@
+# Repository-specific: tests the receipt server, then runs PaymentLab's StoreKit tests (against
+# that server in Xcode mode) and UI tests on an iPhone simulator.
+name: Examples
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: examples-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  receipt-server:
+    name: ReceiptServer (Node 24)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: Examples/ReceiptServer
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+
+      - name: Install
+        run: npm ci
+
+      - name: Test
+        run: npm test
+
+  payment-lab:
+    name: PaymentLab (iOS simulator)
+    runs-on: macos-26
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+
+      - name: Toolchain
+        run: xcodebuild -version
+
+      - name: Start the receipt server for Xcode transactions
+        working-directory: Examples/ReceiptServer
+        run: |
+          npm ci
+          BUNDLE_ID=io.github.muhittincamdali.PaymentLab APPLE_ENVIRONMENT=Xcode \
+            ALLOW_UNVERIFIED_TRANSACTIONS=1 PORT=8787 node src/main.js > "$RUNNER_TEMP/server.log" 2>&1 &
+          for _ in $(seq 1 30); do
+            curl -sf http://127.0.0.1:8787/health && exit 0
+            sleep 1
+          done
+          cat "$RUNNER_TEMP/server.log"
+          exit 1
+
+      - name: Build and run the StoreKit and UI tests
+        working-directory: Examples/PaymentLab
+        env:
+          TEST_RUNNER_PAYMENTLAB_SERVER_URL: http://127.0.0.1:8787
+        run: |
+          set -o pipefail
+          udid=$(xcrun simctl list devices available --json \
+            | jq -r '[.devices | to_entries[] | select(.key | test("iOS")) | .value[] | select(.name | startswith("iPhone"))] | last | .udid')
+          if [ -z "$udid" ] || [ "$udid" = "null" ]; then
+            echo "::error::No available iPhone simulator on this image"
+            exit 1
+          fi
+          # StoreKit testing reads the configuration's prices with the device locale, so the
+          # simulator runs in English (US); a restart applies the setting.
+          xcrun simctl boot "$udid" 2>/dev/null || true
+          xcrun simctl bootstatus "$udid" -b
+          xcrun simctl spawn "$udid" defaults write -g AppleLanguages -array en
+          xcrun simctl spawn "$udid" defaults write -g AppleLocale -string en_US
+          xcrun simctl shutdown "$udid"
+          xcrun simctl boot "$udid"
+          xcrun simctl bootstatus "$udid" -b
+          # StoreKit applies Products.storekit fully only to processes that start after a test
+          # registered it on the simulator, and each test run registers it from inside its own
+          # process. On a simulator that never ran these tests, the first purchase of the first
+          # run asks to sign in to a sandbox account and the run waits there. A run of the
+          # products test, which buys nothing, registers the file first.
+          xcodebuild test -project PaymentLab.xcodeproj -scheme PaymentLab \
+            -destination "id=$udid" -skipPackagePluginValidation -skipMacroValidation -quiet \
+            -only-testing:'PaymentLabTests/StoreKitEndToEndTests/products()'
+          xcodebuild test -project PaymentLab.xcodeproj -scheme PaymentLab \
+            -destination "id=$udid" -skipPackagePluginValidation -skipMacroValidation -quiet \
+            -resultBundlePath "$RUNNER_TEMP/PaymentLab.xcresult"
+
+      - name: Show what the receipt server recorded
+        if: always()
+        run: cat "$RUNNER_TEMP/server.log" || true
+
+      - name: Summarise a failed run
+        if: failure()
+        run: |
+          xcrun xcresulttool get test-results summary --path "$RUNNER_TEMP/PaymentLab.xcresult" || true
+          xcrun xcresulttool get test-results tests --path "$RUNNER_TEMP/PaymentLab.xcresult" || true
+
+      - name: Upload the result bundle
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: PaymentLab-xcresult
+          path: ${{ runner.temp }}/PaymentLab.xcresult
+          retention-days: 7

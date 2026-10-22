@@ -1,0 +1,11 @@
+version: 1
+builder:
+  configs:
+    - platform: ios
+      scheme: PaymentKit
+      documentation_targets: [PaymentKit]
+    - platform: macos-spm
+    - platform: watchos
+      scheme: PaymentKit
+    - platform: visionos
+      scheme: PaymentKit

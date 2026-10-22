@@ -1,361 +1,124 @@
 # Changelog
 
-All notable changes to the iOS Payment Processing Framework will be documented in this file.
+All notable changes to this project are documented in this file.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.0.0] - 2024-01-15
+## [Unreleased]
+
+## [2.0.0] - 2026-10-22
+
+A rebuild of the package as `PaymentKit` on StoreKit 2, PassKit and Swift 6. The 1.x sources did
+not compile with Xcode 27, and their payment, fraud and network managers returned simulated
+results; they are removed (see "Removed").
 
 ### Added
-- Complete payment processing framework with Clean Architecture
-- Support for multiple payment methods (Credit Card, Apple Pay, Google Pay, PayPal)
-- Real-time fraud detection with AI-powered algorithms
-- PCI DSS compliance and security features
-- Multi-currency support with 150+ currencies
-- Subscription management with recurring payments
-- Comprehensive analytics and reporting system
-- 3D Secure authentication for high-risk transactions
-- Tokenization for secure card storage
-- Refund management with automated workflows
-- Real-time transaction monitoring
-- Complete test coverage (100%)
-- SwiftUI integration with custom components
-- Background processing for heavy operations
-- Memory optimization and performance improvements
-- Comprehensive documentation and examples
+
+- `Store`, an `@Observable` model for in-app purchases: loads the catalog's products, purchases
+  them, listens for transaction updates from launch, delivers each verified transaction to a
+  `deliver` closure before finishing it, and keeps `entitlements` current, including a refresh at
+  the next expiration date. Unverified transactions are never delivered or finished; a failed
+  delivery leaves the transaction unfinished for the next launch. `deliver` receives a
+  `TransactionChange`, `.granted` or `.revoked`, so a refund cannot pass for a purchase. A
+  refund's access and coins end before its delivery, so they also end when the refund arrives
+  while its purchase is in `finish()`, which finishes the refund too.
+- `ConsumableLedger` and `.consumable(_:credits:to:)`: coin-style balances credited once per
+  transaction and taken back once on a refund that StoreKit sends to the app, saved with the
+  handled transactions in one atomic write; `Store.balance(of:)` and `Store.spend(_:of:)`.
+  StoreKit does not send the refund of a consumable whose transaction was finished, so only the
+  server sees that refund, from a `REFUND` notification.
+- `ProductDefinition` (consumable, non-consumable, auto-renewable, non-renewing with a duration),
+  `StoreProduct`, `SubscriptionPeriod`, `StoreTransaction`, `TransactionEvent`, `Entitlement`,
+  `EntitlementResolver`, `PurchaseOptions` and the typed `StoreError`.
+- `StoreClient` with `AppStoreClient` (StoreKit 2, `purchase(confirmIn:)` on visionOS) and
+  `TestStoreClient`, an in-memory App Store for tests and previews that simulates Ask to Buy,
+  renewals, refunds, upgrades, Family Sharing, repeated deliveries, purchases on other devices,
+  failed renewals with a Billing Grace Period and unverified updates. Like StoreKit, it sends no
+  update for the refund of a consumable that was already finished.
+- Billing Grace Period: `AppStoreClient` reads each listed subscription's verified renewal
+  status, `StoreTransaction.gracePeriodExpirationDate` holds the end of a grace period, and
+  `EntitlementResolver` grants access until then. A subscription whose status is billing retry,
+  expired or revoked grants nothing.
+- `Money` and `Currency`: exact minor units with ISO 4217 digits, strict and locale-aware
+  parsing that rejects misplaced grouping separators, a period or comma the locale does not use,
+  one period or comma that could be the decimal point of a currency with three decimals (`1.500`
+  dinars), grouping that mixes a period or comma with another separator (`1 234,500`) and digits
+  `Decimal` would round, rounding rules, arithmetic that checks currencies and range, allocation by ratios without losing a
+  minor unit, formatting and validating `Codable`.
+- `CardNumber`, `CardBrand`, `CardExpiry`, `CardSecurityCode`, `CardForm`, `CardFormErrors` and
+  `CardDetails`: brand detection, lengths, Luhn check, expiry through the end of the month in the
+  Gregorian calendar whatever calendar the device uses, formatting while typing, and redaction in
+  every text form.
+- `ApplePayRequest` with `ApplePaySummaryItem`, `ApplePayShippingMethod`, `ApplePayNetwork`,
+  `ApplePayCapabilities` and `ApplePayContactField`, validated before it becomes a
+  `PKPaymentRequest`; `ApplePayController`, which shows the payment sheet and returns
+  `ApplePayOutcome` with async/await; `ApplePayToken.serverPayload()` for payment providers.
+- watchOS 10 and visionOS 1 support next to iOS 17 and macOS 14.
+- Example app `Examples/PaymentLab` with StoreKit tests through `SKTestSession` and UI tests that
+  include the Apple Pay sheet; `Examples/ReceiptServer`, a Node 24 server that verifies
+  transactions and App Store Server Notifications with Apple's App Store Server Library, and
+  keeps a subscription's entitlement through its Billing Grace Period from the renewal
+  information in notifications.
+- A DocC catalog with seven articles, published to GitHub Pages.
+- `scripts/capture-screenshots.sh`, which produces the README screenshots from the UI tests.
+- 141 Swift Testing tests, run on macOS and an iPhone simulator, including seeded random
+  histories of purchases, repeats, refunds, upgrades and renewals.
+
+### Changed
+
+- Swift tools version 6.2 and the Swift 6 language mode; minimum iOS 17 and macOS 14. The
+  library product is `PaymentKit`.
+- CI, documentation, link and wording checks run through the shared workflows of
+  `muhittincamdali/.github`.
+
+### Removed
+
+- `PaymentProcessor`, `NetworkManager`, `FraudDetector`, `SecurityManager`, `AnalyticsManager`,
+  `PaymentSheet` and `PaywallView`, which simulated payments instead of calling a provider; use
+  `ApplePayController` with your payment provider, or your provider's SDK.
+- `ReceiptValidator`, which called Apple's deprecated `verifyReceipt` endpoint; verify
+  `StoreTransaction.signedTransaction` on your server with the App Store Server Library.
+- The `PaymentProcessingUI` and `PaymentProcessingAnalytics` products, the RevenueCat and
+  SwiftyStoreKit migration helpers, and the CocoaPods spec.
 
 ### Security
-- End-to-end encryption with AES-256
-- Secure card tokenization
-- Fraud detection with 99.5% accuracy
-- PCI DSS compliance implementation
-- Input validation and sanitization
-- Rate limiting and DDoS protection
 
-### Performance
-- Sub-second transaction processing
-- <200ms API response times
-- <200MB memory usage
-- Optimized network requests
-- Intelligent caching system
+- Amounts never round silently or trap: too many decimals, `NaN` and values beyond
+  999 999 999 999 999 minor units throw, and parsed text is limited to 64 bytes.
+- Card numbers and security codes print only masked (`•••• 4242`) in descriptions, `dump`,
+  `Mirror` and the debugger, and the card types are not `Codable`.
+- Purchase quantities are limited to StoreKit's 1...10, expiry refresh delays are clamped before
+  they become a `Duration`, and caches of StoreKit objects and handled transactions are bounded.
+- Access is recomputed from StoreKit's current verified transactions after every change and is
+  never accumulated; a refresh that started before a refund cannot overwrite a newer one.
+- Consumables cannot be credited twice: repeats, a restart between crediting and `finish()`, and
+  a refund that arrives before its purchase are handled by the ledger, whose file is size-checked
+  and validated when read.
+- A consumable's refund takes back the balance and amount the ledger recorded for its
+  transaction, also after an app update removed the product from the catalog, left it to
+  `deliver` or changed its credit to another amount or to one the ledger refuses.
+- A refund or revocation is final while a `Store` runs: a copy of the same transaction from
+  before the refund that arrives after it is not delivered, credited or finished, and grants no
+  access even while StoreKit still lists it. A copy whose delivery was under way when the refund
+  arrived is neither credited nor finished once `deliver` returns, so the refund stays unfinished
+  until it is delivered.
+- A refund ends access before it is delivered: when `deliver` throws, for example because the
+  server cannot be reached, the refund stays unfinished and is delivered later, but the refunded
+  purchase grants nothing meanwhile.
+- The example receipt server keeps a refund: once a revoked copy of a transaction is recorded, no
+  other copy replaces it, so posting the signed purchase from before the refund again restores
+  neither the access nor the coins. Other copies replace the stored one only when Apple signed
+  them later. Its ledger is saved atomically to `LEDGER_FILE` before a change counts and read at
+  start, so a restart does not forget a refund; a file it cannot read stops the server.
 
-## [0.9.0] - 2023-12-01
-
-### Added
-- Beta release with core payment processing
-- Basic credit card processing
-- Apple Pay integration
-- Fraud detection algorithms
-- Transaction analytics
-- Security compliance features
-- Unit and integration tests
-- Basic documentation
-
-### Changed
-- Improved error handling
-- Enhanced security measures
-- Performance optimizations
-- Better test coverage
-
-## [0.8.0] - 2023-10-15
+## [1.0.0] - 2026-02-02
 
 ### Added
-- Alpha release with foundational components
-- Payment processor core
-- Basic security features
-- Initial test suite
-- Project structure and architecture
 
-### Changed
-- Refactored core architecture
-- Improved code organization
-- Enhanced error handling
+- `PaymentProcessor` with simulated card, Apple Pay and subscription flows, fraud scoring and
+  analytics, and StoreKit 2 helpers.
 
-## [0.7.0] - 2023-08-20
-
-### Added
-- Initial framework structure
-- Core payment models
-- Basic payment processing
-- Security foundation
-- Project setup and configuration
-
-### Changed
-- Established Clean Architecture
-- Implemented SOLID principles
-- Created modular design
-
-## [0.6.0] - 2023-06-10
-
-### Added
-- Project initialization
-- Basic payment processing concepts
-- Security framework design
-- Architecture planning
-- Development environment setup
-
-### Changed
-- Project structure improvements
-- Code organization enhancements
-
-## [0.5.0] - 2023-04-05
-
-### Added
-- Initial project setup
-- Core payment models
-- Basic security implementation
-- Foundation architecture
-- Development tools configuration
-
-### Changed
-- Improved project structure
-- Enhanced code quality
-
-## [0.4.0] - 2023-02-15
-
-### Added
-- Project foundation
-- Basic payment processing
-- Security framework
-- Initial documentation
-- Test framework setup
-
-### Changed
-- Architecture improvements
-- Code quality enhancements
-
-## [0.3.0] - 2022-12-01
-
-### Added
-- Core payment functionality
-- Security features
-- Basic testing
-- Project structure
-- Documentation foundation
-
-### Changed
-- Improved architecture
-- Enhanced security
-
-## [0.2.0] - 2022-09-20
-
-### Added
-- Payment processing core
-- Security implementation
-- Basic architecture
-- Initial tests
-- Project setup
-
-### Changed
-- Architecture refinements
-- Security improvements
-
-## [0.1.0] - 2022-07-10
-
-### Added
-- Initial project creation
-- Basic payment models
-- Security foundation
-- Project structure
-- Development setup
-
-### Changed
-- Project organization
-- Code quality improvements
-
----
-
-## Migration Guide
-
-### From 0.9.0 to 1.0.0
-
-The 1.0.0 release introduces breaking changes to improve the API design and security:
-
-#### PaymentProcessor Initialization
-
-**Before:**
-```swift
-let processor = PaymentProcessor(merchantId: "id", apiKey: "key")
-```
-
-**After:**
-```swift
-let processor = PaymentProcessor(
-    configuration: PaymentConfiguration(
-        merchantId: "id",
-        apiKey: "key",
-        environment: .production
-    )
-)
-```
-
-#### Payment Request
-
-**Before:**
-```swift
-let request = PaymentRequest(amount: 100, currency: "USD")
-```
-
-**After:**
-```swift
-let request = PaymentRequest(
-    amount: 100,
-    currency: .usd,
-    paymentMethod: .creditCard,
-    description: "Payment description"
-)
-```
-
-#### Error Handling
-
-**Before:**
-```swift
-processor.processPayment(request) { transaction, error in
-    if let error = error {
-        // Handle error
-    }
-}
-```
-
-**After:**
-```swift
-processor.processPayment(request) { result in
-    switch result {
-    case .success(let transaction):
-        // Handle success
-    case .failure(let error):
-        // Handle error
-    }
-}
-```
-
-### From 0.8.0 to 0.9.0
-
-No breaking changes. All APIs remain compatible.
-
-### From 0.7.0 to 0.8.0
-
-Minor API improvements with backward compatibility.
-
----
-
-## Deprecation Notices
-
-### Version 1.0.0
-
-The following APIs have been deprecated and will be removed in version 2.0.0:
-
-- `PaymentProcessor.init(merchantId:apiKey:)` - Use `PaymentProcessor.init(configuration:)` instead
-- `PaymentRequest.init(amount:currency:)` - Use the full initializer with required parameters
-- `processPayment(_:completion:)` with tuple return - Use the Result-based API instead
-
-### Version 0.9.0
-
-No deprecations in this version.
-
----
-
-## Known Issues
-
-### Version 1.0.0
-
-- [Issue #123] Memory leak in high-frequency transaction processing (Fixed in 1.0.1)
-- [Issue #124] Apple Pay integration fails on iOS 15.0 (Fixed in 1.0.1)
-- [Issue #125] Fraud detection false positives in certain regions (Fixed in 1.0.2)
-
-### Version 0.9.0
-
-- [Issue #100] Performance degradation with large transaction volumes (Fixed in 0.9.1)
-- [Issue #101] Security vulnerability in tokenization (Fixed in 0.9.2)
-
----
-
-## Roadmap
-
-### Version 1.1.0 (Q2 2024)
-- Enhanced fraud detection with machine learning
-- Additional payment methods (Bitcoin, Ethereum)
-- Advanced analytics dashboard
-- Real-time webhook notifications
-- Multi-language support
-
-### Version 1.2.0 (Q3 2024)
-- Blockchain integration
-- Advanced compliance reporting
-- White-label solutions
-- Enterprise deployment tools
-- Performance monitoring dashboard
-
-### Version 2.0.0 (Q4 2024)
-- Complete rewrite with Swift 6.0
-- Advanced AI-powered features
-- Global payment network
-- Real-time settlement
-- Advanced security features
-
----
-
-## Support
-
-For support and questions:
-- [Documentation](Documentation/)
-- [GitHub Issues](https://github.com/muhittincamdali/iOS-Payment-Processing-Framework/issues)
-- [GitHub Discussions](https://github.com/muhittincamdali/iOS-Payment-Processing-Framework/discussions)
-- Email: support@paymentframework.com # iOS-Payment-Processing-Framework - Update 1
-# iOS-Payment-Processing-Framework - Update 2
-# iOS-Payment-Processing-Framework - Update 3
-# iOS-Payment-Processing-Framework - Update 4
-# iOS-Payment-Processing-Framework - Update 5
-# iOS-Payment-Processing-Framework - Update 6
-# iOS-Payment-Processing-Framework - Update 7
-# iOS-Payment-Processing-Framework - Update 8
-# iOS-Payment-Processing-Framework - Update 9
-# iOS-Payment-Processing-Framework - Update 10
-# iOS-Payment-Processing-Framework - Update 11
-# iOS-Payment-Processing-Framework - Update 12
-# iOS-Payment-Processing-Framework - Update 13
-# iOS-Payment-Processing-Framework - Update 14
-# iOS-Payment-Processing-Framework - Update 15
-# iOS-Payment-Processing-Framework - Update 16
-# iOS-Payment-Processing-Framework - Update 17
-# iOS-Payment-Processing-Framework - Update 18
-# iOS-Payment-Processing-Framework - Update 19
-# iOS-Payment-Processing-Framework - Update 20
-# iOS-Payment-Processing-Framework - Update 21
-# iOS-Payment-Processing-Framework - Update 22
-# iOS-Payment-Processing-Framework - Update 23
-# iOS-Payment-Processing-Framework - Update 24
-# iOS-Payment-Processing-Framework - Update 25
-# iOS-Payment-Processing-Framework - Update 26
-# iOS-Payment-Processing-Framework - Update 27
-# iOS-Payment-Processing-Framework - Update 28
-# iOS-Payment-Processing-Framework - Update 29
-# iOS-Payment-Processing-Framework - Update 30
-# iOS-Payment-Processing-Framework - Update 31
-# iOS-Payment-Processing-Framework - Update 32
-# iOS-Payment-Processing-Framework - Update 33
-# iOS-Payment-Processing-Framework - Update 34
-# iOS-Payment-Processing-Framework - Update 35
-# iOS-Payment-Processing-Framework - Update 36
-# iOS-Payment-Processing-Framework - Update 37
-# iOS-Payment-Processing-Framework - Update 38
-# iOS-Payment-Processing-Framework - Update 39
-# iOS-Payment-Processing-Framework - Update 40
-# iOS-Payment-Processing-Framework - Update 41
-# iOS-Payment-Processing-Framework - Update 42
-# iOS-Payment-Processing-Framework - Update 43
-# iOS-Payment-Processing-Framework - Update 44
-# iOS-Payment-Processing-Framework - Update 45
-# iOS-Payment-Processing-Framework - Update 46
-# iOS-Payment-Processing-Framework - Update 47
-# iOS-Payment-Processing-Framework - Update 48
-# iOS-Payment-Processing-Framework - Update 49
-# iOS-Payment-Processing-Framework - Update 50
-# iOS-Payment-Processing-Framework - Update 51
-# iOS-Payment-Processing-Framework - Update 52
-# iOS-Payment-Processing-Framework - Update 53
-# iOS-Payment-Processing-Framework - Update 54
-# iOS-Payment-Processing-Framework - Update 55
-# iOS-Payment-Processing-Framework - Update 56
-# iOS-Payment-Processing-Framework - Update 57
+[Unreleased]: https://github.com/muhittincamdali/iOS-Payment-Processing-Framework/compare/v2.0.0...HEAD
+[2.0.0]: https://github.com/muhittincamdali/iOS-Payment-Processing-Framework/compare/v1.0.0...v2.0.0
+[1.0.0]: https://github.com/muhittincamdali/iOS-Payment-Processing-Framework/releases/tag/v1.0.0

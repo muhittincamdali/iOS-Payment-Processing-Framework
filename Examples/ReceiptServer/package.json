@@ -1,0 +1,18 @@
+{
+  "name": "paymentkit-receipt-server",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Verifies StoreKit transactions with Apple's App Store Server Library and keeps entitlements.",
+  "type": "module",
+  "license": "MIT",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "start": "node src/main.js",
+    "test": "node --test test/*.test.js"
+  },
+  "dependencies": {
+    "@apple/app-store-server-library": "3.1.0"
+  }
+}
