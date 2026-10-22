@@ -75,7 +75,7 @@ final class PaymentLabUITests: XCTestCase {
         enter("4242424242424241", into: number)
         enter("13/30", into: app.textFields["card.expiry"])
         enter("12", into: app.textFields["card.code"])
-        app.buttons["card.check"].tap()
+        checkCard()
         XCTAssertTrue(waitForText("Check the card number for a typo.", timeout: 5))
         XCTAssertTrue(waitForText("The expiry month must be 01 to 12.", timeout: 5))
         XCTAssertTrue(waitForText("The security code has 3 digits.", timeout: 5))
@@ -89,7 +89,7 @@ final class PaymentLabUITests: XCTestCase {
         enter("09/30", into: app.textFields["card.expiry"])
         clear(app.textFields["card.code"])
         enter("1234", into: app.textFields["card.code"])
-        app.buttons["card.check"].tap()
+        checkCard()
         XCTAssertTrue(waitForText("americanExpress •••• 0005 09/30", timeout: 5))
     }
 
@@ -104,8 +104,9 @@ final class PaymentLabUITests: XCTestCase {
     /// while a slow simulator is still showing the keyboard or reformatting the text: the first
     /// field of a run on GitHub's macos-26 image kept "4242 4242 42" of a 16-digit number.
     private func enter(_ text: String, into field: XCUIElement) {
+        closeKeyboard()
         field.tap()
-        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 20), "The keyboard did not appear")
+        waitForKeyboardFocus(field)
         for character in text {
             let before = field.value as? String
             field.typeText(String(character))
@@ -117,10 +118,43 @@ final class PaymentLabUITests: XCTestCase {
         }
     }
 
+    /// Closes the keyboard, then taps "Check Card". On iOS 26 the keyboard is translucent and
+    /// its floating toolbar sits over the button, which the form does not scroll clear of:
+    /// taps on the button never reached it in a run on GitHub's macos-26 image, where the
+    /// keyboard stayed up and no error message appeared.
+    private func checkCard() {
+        closeKeyboard()
+        app.buttons["card.check"].tap()
+    }
+
+    /// Taps Done on the keyboard's toolbar. The toolbar covers the field or button that lies
+    /// at its height and swallows taps on it, so a test closes the keyboard before it taps
+    /// anything else; the form's security code field is one such place. Done is not in the
+    /// accessibility tree on iOS 26, so the tap goes to its place at the toolbar's trailing end.
+    private func closeKeyboard() {
+        let toolbar = app.toolbars.firstMatch
+        guard app.keyboards.firstMatch.exists, toolbar.exists else { return }
+        toolbar.coordinate(withNormalizedOffset: CGVector(dx: 0.86, dy: 0.5)).tap()
+        _ = app.keyboards.firstMatch.waitForNonExistence(timeout: 5)
+    }
+
+    /// Waits until the field is the keyboard's target. `typeText` fails with "Neither element nor
+    /// any descendant has keyboard focus" when it comes while a slow simulator is still showing
+    /// the keyboard or moving it to another field, as it did after the first check on GitHub's
+    /// macos-26 image. The hierarchy marks the field with "Keyboard Focused".
+    private func waitForKeyboardFocus(_ field: XCUIElement) {
+        let deadline = Date().addingTimeInterval(20)
+        while !field.debugDescription.contains("Keyboard Focused"), Date() < deadline {
+            RunLoop.current.run(until: Date().addingTimeInterval(0.1))
+        }
+    }
+
     private func clear(_ field: XCUIElement) {
+        closeKeyboard()
         // A tap in the middle can put the cursor inside the text, so deleting from there leaves
-        // the characters before it; tap at the trailing edge instead.
-        field.coordinate(withNormalizedOffset: CGVector(dx: 0.97, dy: 0.5)).tap()
+        // the characters before it; tap past the end of the text instead.
+        field.coordinate(withNormalizedOffset: CGVector(dx: 0.75, dy: 0.5)).tap()
+        waitForKeyboardFocus(field)
         // The field formats as you type, so a deleted space can come back; delete until empty.
         for _ in 0..<4 {
             let text = field.value as? String ?? ""
