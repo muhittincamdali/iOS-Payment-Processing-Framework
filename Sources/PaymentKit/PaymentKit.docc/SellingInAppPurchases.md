@@ -41,18 +41,22 @@ StoreKit sends, or from the unfinished transactions at launch, takes the same pa
 
 1. A transaction StoreKit cannot verify is never delivered or finished. ``Store/lastError`` is
    set to ``StoreError/verificationFailed(productID:reason:)``.
-2. A verified transaction goes to your `deliver` closure, if you passed one, as a
+2. A refund is taken back first: ``Store/entitlements`` is recomputed without it, and the
+   ``ConsumableLedger`` takes back what the purchase credited, so the refunded access and coins
+   end even when a later step throws. StoreKit sends a consumable's refund only while its
+   transaction is unfinished (see "Refunds, repeats and restarts").
+3. A verified transaction goes to your `deliver` closure, if you passed one, as a
    ``TransactionChange``: ``TransactionChange/granted(_:)`` for a purchase, renewal or approval,
    ``TransactionChange/revoked(_:)`` for a refund. Send ``StoreTransaction/signedTransaction`` to
    your server there.
-3. A consumable defined with a credit is credited to the ``ConsumableLedger``, or taken back
-   for a refund. StoreKit sends a consumable's refund only while its transaction is unfinished
-   (see "Refunds, repeats and restarts").
-4. Only after both succeed is the transaction finished. If either throws, the transaction stays
-   unfinished and StoreKit sends it again on the next ``Store/start()``.
-5. ``Store/entitlements`` is recomputed from StoreKit's current entitlements. For a refund it
-   is also recomputed before step 2, so the refunded access ends even when `deliver` throws and
-   the refund waits, unfinished, to be delivered again.
+4. A purchase of a consumable defined with a credit is credited to the ledger.
+5. Only after these steps succeed is the transaction finished. If one throws, the transaction
+   stays unfinished and StoreKit sends it again on the next ``Store/start()``. The exception is
+   a refund that arrives while a copy of its purchase is in `finish()`: StoreKit finishes a
+   transaction by its identifier, so that call finishes the refund too, and StoreKit does not
+   send it again even when its delivery threw. Its access and coins are gone already (step 2),
+   and your server learns of it from a `REFUND` App Store Server Notification.
+6. ``Store/entitlements`` is recomputed from StoreKit's current entitlements.
 
 ### Refunds, repeats and restarts
 
@@ -68,7 +72,9 @@ launch; that copy has no revocation date, but it is not delivered, credited or f
 transaction grants no access even while StoreKit's list of current entitlements still has it.
 The same holds for a copy whose delivery was under way when the refund arrived: once `deliver`
 returns, the copy is neither credited nor finished, because StoreKit finishes a transaction by
-its identifier and finishing the copy would finish a refund whose delivery failed.
+its identifier and finishing the copy would finish a refund whose delivery failed. A copy already
+in `finish()` cannot be held back (step 5); once `finish()` returns, it takes its coins back,
+in case the refund could not.
 
 Coins are different, because they are counted. The ledger credits each transaction once,
 however often StoreKit sends it, and saves the balance together with the list of handled
