@@ -108,6 +108,11 @@
           "familyShareable" : false,
           "groupNumber" : 2,
           "internalID" : "6E0F1A32",
+          "introductoryOffer" : {
+            "internalID" : "6E0F1A33",
+            "paymentMode" : "free",
+            "subscriptionPeriod" : "P1W"
+          },
           "introductoryOffers" : [
             {
               "internalID" : "6E0F1A33",
