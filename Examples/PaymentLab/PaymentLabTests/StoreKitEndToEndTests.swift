@@ -184,9 +184,14 @@ struct StoreKitEndToEndTests {
 
         try session.refundTransaction(identifier: UInt(pack))
         #expect(await eventually(timeout: .seconds(15)) { await delivered.revokedIDs.contains(pack) })
-        unfinished = []
-        for await result in Transaction.unfinished { unfinished.append(result.unsafePayloadValue.id) }
-        #expect(unfinished.isEmpty, "the refund is finished, and the purchase with it")
+        // deliver runs before the store finishes the refund, so finishing can still be under way.
+        var stillUnfinished: [UInt64] = []
+        let finished = await eventually(timeout: .seconds(15)) {
+            stillUnfinished = []
+            for await result in Transaction.unfinished { stillUnfinished.append(result.unsafePayloadValue.id) }
+            return stillUnfinished.isEmpty
+        }
+        #expect(finished, "the refund is finished, and the purchase with it; still unfinished: \(stillUnfinished)")
         #expect(store.balance(of: "coins") == 0)
         store.stop()
     }
