@@ -191,6 +191,37 @@ struct RevocationTests {
         store.stop()
     }
 
+    // The same window at launch: start() hands over a purchase the app never finished, and its
+    // refund arrives through the updates start() listens to while that copy is in finish().
+    @Test("a refund that arrives at launch while the unfinished purchase is being finished takes the coins back")
+    func refundDuringFinishAtLaunch() async throws {
+        let clock = clock
+        let appStore = TestStoreClient(products: Fixtures.products) { clock.now }
+        _ = try await appStore.purchase(Fixtures.coins.id, options: PurchaseOptions()) // the app stopped before finish()
+        let pack = try #require(await appStore.unfinishedTransactions().first?.transaction)
+        let client = InterposingClient(appStore)
+        let ledger = ConsumableLedger(fileURL: nil)
+        let recorder = recorder
+        let store = Store(catalog: Fixtures.catalog, client: client, ledger: ledger, now: { clock.now }) { try recorder.deliver($0) }
+        await client.holdNextFinish()
+        let starting = Task { await store.start() }
+        #expect(await eventually { await client.isHoldingFinish })
+        #expect(store.balance(of: "coins") == 100)
+
+        recorder.setFailing(true) // the refund cannot reach the server
+        try await appStore.refund(pack.id)
+        #expect(await eventually { store.lastError == .deliveryFailed(transactionID: pack.id, reason: "The wallet service is offline.") })
+        #expect(store.balance(of: "coins") == 0, "the refund takes the coins back before its delivery")
+        await client.releaseHeldFinish() // the launch copy's finish() returns after the refund was handled
+        await starting.value
+
+        #expect(await appStore.unfinishedTransactionIDs.isEmpty, "finishing the launch copy finished the refund")
+        #expect(store.balance(of: "coins") == 0)
+        #expect(try await ledger.balances()["coins"] == 0)
+        #expect(recorder.changes == [.granted(pack)])
+        store.stop()
+    }
+
     // An app update can drop a consumable from the catalog, leave it to `deliver`, or change
     // its credit; the coins its purchases credited are still in the ledger and must go back.
     @Test("a refund takes back what the ledger credited after an update changed the product", arguments: [
