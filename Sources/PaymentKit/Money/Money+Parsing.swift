@@ -27,9 +27,14 @@ extension Money {
     /// States or `"0.99"` and `"0.500"` in Germany, where the separator was meant as a decimal
     /// point, throws instead of becoming 100 or 1000 times larger. A period or comma the locale
     /// uses for neither, such as `"1.500"` in France, throws as well, because it could mean 1.50
-    /// or 1500. Currency symbols, letters, exponents and a second decimal separator throw too.
-    /// An amount with more decimals than the currency has throws instead of being rounded, so
-    /// `"10.999"` dollars is reported to the person rather than charged as `11.00`.
+    /// or 1500. In a currency with three or more decimals, such as the Kuwaiti or Tunisian dinar,
+    /// one period or comma before three digits and no decimal separator throws too: `"1.500"`
+    /// dinars in Tunisia or `"1,500"` in Kuwait could mean 1.5 or 1500, so the person types
+    /// `"1500"` or the amount with its decimals, such as `"1,500.000"` in Kuwait. Spaces and
+    /// apostrophes are never decimal separators, so `"1 500"` stays 1500. Currency symbols,
+    /// letters, exponents and a second decimal separator throw too. An amount with more decimals
+    /// than the currency has throws instead of being rounded, so `"10.999"` dollars is reported
+    /// to the person rather than charged as `11.00`.
     ///
     /// - Throws: ``MoneyError/invalidText``, ``MoneyError/tooManyFractionDigits(currency:)`` or
     ///   ``MoneyError/outOfRange``.
@@ -38,7 +43,8 @@ extension Money {
         let plain = try Self.plainNumber(
             from: text.trimmingCharacters(in: .whitespaces),
             decimalSeparator: locale.decimalSeparator ?? ".",
-            groupingSeparator: locale.groupingSeparator ?? ","
+            groupingSeparator: locale.groupingSeparator ?? ",",
+            fractionDigits: currency.minorUnitDigits
         )
         let decimal = try Self.strictDecimal(plain, currency: currency)
         try self.init(decimal, currency)
@@ -46,16 +52,20 @@ extension Money {
 
     /// Rewrites localized text as `-?digits(.digits)?`, checking where grouping separators are.
     /// Any other character throws, so only the locale's own decimal separator becomes a point.
+    /// `fractionDigits` is the currency's number of decimals.
     private static func plainNumber(
         from text: String,
         decimalSeparator: String,
-        groupingSeparator: String
+        groupingSeparator: String,
+        fractionDigits: Int
     ) throws(MoneyError) -> String {
         // Grouping characters people type or that formatters produce, besides the locale's own.
+        // None of them is ever a decimal separator.
         let grouping: Set<Character> = [" ", "\u{00A0}", "\u{202F}", "'", "’"]
         var sign = ""
         var groups = [""]
         var fraction: String?
+        var groupedWithPossibleDecimalMark = false
         for (offset, character) in text.enumerated() {
             if offset == 0, character == "-" || character == "\u{2212}" {
                 sign = "-" // U+2212 is the minus sign some locales format negative numbers with.
@@ -64,6 +74,7 @@ extension Money {
             } else if String(character) == groupingSeparator || grouping.contains(character) {
                 guard fraction == nil else { throw .invalidText }
                 groups.append("")
+                groupedWithPossibleDecimalMark = groupedWithPossibleDecimalMark || !grouping.contains(character)
             } else if !character.isASCII || !character.isNumber {
                 // A period or comma the locale does not use would otherwise reach strictDecimal,
                 // which reads "." as a decimal point: "1.500" in France would become 1.50.
@@ -75,6 +86,11 @@ extension Money {
             }
         }
         guard hasDigitGroups(groups) else { throw .invalidText }
+        // "1.500" dinars in Tunisia or "1,500" in Kuwait is 1.5 to someone who typed a decimal
+        // point; read as grouping it would charge 1000 times that.
+        if groupedWithPossibleDecimalMark, fraction == nil, groups.count == 2, groups[1].count <= fractionDigits {
+            throw .invalidText
+        }
         return sign + groups.joined() + (fraction.map { ".\($0)" } ?? "")
     }
 

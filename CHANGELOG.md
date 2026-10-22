@@ -41,8 +41,9 @@ results; they are removed (see "Removed").
   `EntitlementResolver` grants access until then. A subscription whose status is billing retry,
   expired or revoked grants nothing.
 - `Money` and `Currency`: exact minor units with ISO 4217 digits, strict and locale-aware
-  parsing that rejects misplaced grouping separators, a period or comma the locale does not use
-  and digits `Decimal` would round, rounding rules, arithmetic that checks currencies and range, allocation by ratios without losing a
+  parsing that rejects misplaced grouping separators, a period or comma the locale does not use,
+  one period or comma that could be the decimal point of a currency with three decimals (`1.500`
+  dinars) and digits `Decimal` would round, rounding rules, arithmetic that checks currencies and range, allocation by ratios without losing a
   minor unit, formatting and validating `Codable`.
 - `CardNumber`, `CardBrand`, `CardExpiry`, `CardSecurityCode`, `CardForm`, `CardFormErrors` and
   `CardDetails`: brand detection, lengths, Luhn check, expiry through the end of the month in the

@@ -48,7 +48,11 @@ crashing:
   United States or `0.500` in Germany, which would otherwise become 100 or 1000 times the
   amount;
 - typed text with a period or comma the locale uses neither for decimals nor for grouping,
-  such as `1.500` in France, Sweden or Russia, which could mean 1.50 or 1500.
+  such as `1.500` in France, Sweden or Russia, which could mean 1.50 or 1500;
+- typed text in a currency with three or more decimals, such as the Kuwaiti or Tunisian dinar,
+  with one period or comma before three digits and no decimal separator, such as `1.500` dinars
+  in Tunisia or `1,500` in Kuwait, which could mean 1.5 or 1500. `1500`, `1,500.000` and
+  `1,500,000` in Kuwait, and `1 500` with a space, still parse.
 
 ### Split without losing a cent
 

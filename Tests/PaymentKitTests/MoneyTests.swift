@@ -290,6 +290,33 @@ struct MoneyParsingTests {
         }
     }
 
+    // In a currency with three decimals, one period or comma before three digits could be a
+    // decimal point: "1.500" dinars in Tunisia is 1.5 to the person who typed it, and reading
+    // it as grouping would charge 1000 times that. CLF has four decimals, so "1,500" could be
+    // 1.5 there too.
+    @Test("one period or comma before as many digits as the currency's decimals throws", arguments: [
+        ("1.500", "ar_TN", "TND"), ("1,500", "en_KW", "KWD"), ("1,500", "en_BH", "BHD"), ("1,500", "en_JO", "JOD"),
+        ("1.500", "de_DE", "KWD"), ("2.250", "tr_TR", "KWD"), ("1.500", "ar_LY", "LYD"), ("-1,500", "en_US", "KWD"),
+        ("999,999", "en_US", "OMR"), ("1\u{066C}500", "ar_KW", "KWD"), ("1,500", "en_US", "CLF")
+    ])
+    func groupingThatCouldBeDecimals(text: String, locale: String, code: String) throws {
+        let currency = try Currency(code)
+        #expect(throws: MoneyError.invalidText, "\(text) \(code) in \(locale)") {
+            try Money(parsing: text, currency: currency, locale: Locale(identifier: locale))
+        }
+    }
+
+    @Test("amounts that are not ambiguous still parse, in three-decimal currencies too", arguments: [
+        ("1,500.000", "en_KW", "KWD", 1_500_000), ("1,500,000", "en_KW", "KWD", 1_500_000_000), ("1500", "en_KW", "KWD", 1_500_000),
+        ("1.5", "en_KW", "KWD", 1_500), ("1,5", "ar_TN", "TND", 1_500), ("1.500,250", "ar_TN", "TND", 1_500_250),
+        ("1 500", "fr_FR", "TND", 1_500_000), ("1.500", "de_DE", "EUR", 150_000), ("1,500", "en_US", "USD", 150_000),
+        ("1,500", "en_US", "JPY", 1_500)
+    ])
+    func unambiguousThreeDecimalAmounts(text: String, locale: String, code: String, expected: Int64) throws {
+        let money = try Money(parsing: text, currency: try Currency(code), locale: Locale(identifier: locale))
+        #expect(money.minorUnits == expected, "\(text) \(code) in \(locale)")
+    }
+
     @Test("amounts below one without grouping still parse", arguments: [
         ("0.99", "en_US", Currency.usd, 99), ("0,50", "de_DE", .eur, 50), ("0.500", "en_US", .kwd, 500),
         ("0,05", "tr_TR", .try, 5), ("-0.5", "en_US", .usd, -50), ("0", "en_US", .usd, 0)
