@@ -317,6 +317,33 @@ struct MoneyParsingTests {
         #expect(money.minorUnits == expected, "\(text) \(code) in \(locale)")
     }
 
+    // No locale groups digits with two different characters, so in "1 234,500" typed in the
+    // United States or "1 234.500" in Tunisia the period or comma may be a decimal point after
+    // space grouping; reading it as grouping would charge 1000 times the amount.
+    @Test("grouping that mixes a period or comma with another separator throws", arguments: [
+        ("1 234,500", "en_US", "USD"), ("1\u{00A0}234,500", "en_US", "USD"), ("1’234,500", "en_US", "USD"),
+        ("1,234 500", "en_US", "USD"), ("-1 234,500", "en_US", "USD"), ("1 234,567.5", "en_US", "USD"),
+        ("1 234 567,500", "en_US", "KWD"), ("1 234,500", "en_KW", "KWD"), ("12 345,678", "en_BH", "BHD"),
+        ("1 234.500", "ar_TN", "TND"), ("1'234.500", "de_DE", "EUR"), ("1 234\u{066C}500", "ar_KW", "KWD")
+    ])
+    func mixedGrouping(text: String, locale: String, code: String) throws {
+        let currency = try Currency(code)
+        #expect(throws: MoneyError.invalidText, "\(text) \(code) in \(locale)") {
+            try Money(parsing: text, currency: currency, locale: Locale(identifier: locale))
+        }
+    }
+
+    @Test("grouping with one kind of separator still parses", arguments: [
+        ("1,234,567.89", "en_US", "USD", 123_456_789), ("1.234.567,89", "de_DE", "EUR", 123_456_789),
+        ("12,34,567", "en_IN", "INR", 123_456_700), ("1 234 567", "en_US", "USD", 123_456_700),
+        ("1\u{00A0}234 567,5", "fr_FR", "EUR", 123_456_750), ("1’234'567.50", "de_CH", "CHF", 123_456_750),
+        ("1,234,500", "en_KW", "KWD", 1_234_500_000), ("1.234.500,250", "ar_TN", "TND", 1_234_500_250)
+    ])
+    func consistentGrouping(text: String, locale: String, code: String, expected: Int64) throws {
+        let money = try Money(parsing: text, currency: try Currency(code), locale: Locale(identifier: locale))
+        #expect(money.minorUnits == expected, "\(text) \(code) in \(locale)")
+    }
+
     @Test("amounts below one without grouping still parse", arguments: [
         ("0.99", "en_US", Currency.usd, 99), ("0,50", "de_DE", .eur, 50), ("0.500", "en_US", .kwd, 500),
         ("0,05", "tr_TR", .try, 5), ("-0.5", "en_US", .usd, -50), ("0", "en_US", .usd, 0)

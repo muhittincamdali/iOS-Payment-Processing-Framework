@@ -52,7 +52,10 @@ crashing:
 - typed text in a currency with three or more decimals, such as the Kuwaiti or Tunisian dinar,
   with one period or comma before three digits and no decimal separator, such as `1.500` dinars
   in Tunisia or `1,500` in Kuwait, which could mean 1.5 or 1500. `1500`, `1,500.000` and
-  `1,500,000` in Kuwait, and `1 500` with a space, still parse.
+  `1,500,000` in Kuwait, and `1 500` with a space, still parse;
+- typed text grouped with the locale's period or comma and another separator, such as
+  `1 234,500` in the United States or `1 234.500` in Tunisia, where the period or comma could
+  be a decimal point. `1,234,567` and `1 234 567` still parse.
 
 ### Split without losing a cent
 
