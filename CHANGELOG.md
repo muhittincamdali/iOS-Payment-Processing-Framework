@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [2.0.0] - 2026-10-15
+## [2.0.0] - 2026-10-22
 
 A rebuild of the package as `PaymentKit` on StoreKit 2, PassKit and Swift 6. The 1.x sources did
 not compile with Xcode 27, and their payment, fraud and network managers returned simulated
