@@ -1,4 +1,4 @@
-<!-- i18n-source: README.md@fb21cbfe1d3b9a712c773a9b4655c86c31cf1901 status=reviewed -->
+<!-- i18n-source: README.md@818f579670e5e23eaab254ece2280c4cb457830b status=reviewed -->
 <!-- brand:start -->
 
 <p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/muhittincamdali/iOS-Payment-Processing-Framework/master/.github/brand/banner-dark.svg"><source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/muhittincamdali/iOS-Payment-Processing-Framework/master/.github/brand/banner-light.svg"><img src="https://raw.githubusercontent.com/muhittincamdali/iOS-Payment-Processing-Framework/master/.github/brand/banner-light.svg" alt="PaymentKit: Sell in-app purchases with StoreKit 2, take Apple Pay and keep money exact on Apple platforms."></picture></p>
@@ -35,7 +35,7 @@ O PaymentKit é um pacote Swift para o código de pagamento de apps nas platafor
 - **Dinheiro exato** — o `Money` guarda as unidades menores de uma moeda ISO 4217; casas decimais demais, `NaN`, estouro e moedas misturadas lançam um erro em vez de arredondar ou travar, e as divisões nunca perdem um centavo.
 - **Requisições de Apple Pay verificadas** — o `ApplePayRequest` valida o comerciante, a moeda, os rótulos e os totais antes que o PassKit os veja, e o `ApplePayController` informa o pagamento com async/await.
 - **Dados de cartão que não vazam** — `CardNumber`, `CardSecurityCode` e `CardForm` validam a entrada (bandeira, tamanho, Luhn, validade) e aparecem como `•••• 4242` em logs, no `dump` e no depurador.
-- **Testado de ponta a ponta** — 136 testes de Swift Testing no macOS e em um simulador de iPhone, 11 testes de StoreKit e 4 testes de UI no app de exemplo (StoreKit real pelo Xcode, a folha real do Apple Pay) e 38 testes para o servidor de recibos.
+- **Testado de ponta a ponta** — 141 testes de Swift Testing no macOS e em um simulador de iPhone, 11 testes de StoreKit e 4 testes de UI no app de exemplo (StoreKit real pelo Xcode, a folha real do Apple Pay) e 38 testes para o servidor de recibos.
 
 ## Início rápido
 
