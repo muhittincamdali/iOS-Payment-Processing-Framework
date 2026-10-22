@@ -79,8 +79,8 @@ func moneySamples() throws -> (total: Money, shares: [Money]) {
 
     do {
         _ = try Money("10.999", .usd)
-    } catch MoneyError.tooManyFractionDigits {
-        print("US dollars have two decimals") // never rounded silently
+    } catch {
+        print("US dollars have two decimals: \(error)") // never rounded silently
     }
     return (total, shares)
 }
