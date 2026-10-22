@@ -80,12 +80,15 @@ enum Fixtures {
 }
 
 /// A client that passes everything to a ``TestStoreClient`` but can stand in for an app that
-/// stops before `finish()`, or hold one entitlements read until the test releases it.
+/// stops before `finish()`, or hold one entitlements read or one `finish()` until the test
+/// releases it.
 actor InterposingClient: StoreClient {
     let base: TestStoreClient
     private var finishes = true
     private var readsToHold = 0
     private var held: [CheckedContinuation<Void, Never>] = []
+    private var finishesToHold = 0
+    private var heldFinishes: [CheckedContinuation<Void, Never>] = []
 
     init(_ base: TestStoreClient) {
         self.base = base
@@ -117,7 +120,25 @@ actor InterposingClient: StoreClient {
     nonisolated func transactionUpdates() -> AsyncStream<TransactionEvent> { base.transactionUpdates() }
     func sync() async throws { try await base.sync() }
 
+    /// Makes the next `finish(_:)` wait for ``releaseHeldFinish()`` before it finishes the
+    /// transaction, as a `finish()` that StoreKit has not completed yet.
+    func holdNextFinish() {
+        finishesToHold += 1
+    }
+
+    var isHoldingFinish: Bool { !heldFinishes.isEmpty }
+
+    /// Lets the `finish(_:)` that has been held the longest finish its transaction.
+    func releaseHeldFinish() {
+        guard !heldFinishes.isEmpty else { return }
+        heldFinishes.removeFirst().resume()
+    }
+
     func finish(_ transaction: StoreTransaction) async {
+        if finishesToHold > 0 {
+            finishesToHold -= 1
+            await withCheckedContinuation { heldFinishes.append($0) }
+        }
         if finishes { await base.finish(transaction) }
     }
 

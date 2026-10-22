@@ -67,8 +67,10 @@ public enum StoreError: Error, Hashable, Sendable {
     /// The quantity is outside 1...``PurchaseOptions/maximumQuantity``, or above 1 for a
     /// product that is not a consumable.
     case invalidQuantity(Int)
-    /// The `deliver` closure of ``Store`` threw; the transaction stays unfinished and is
-    /// delivered again on the next ``Store/start()``. Holds the error's description.
+    /// The `deliver` closure of ``Store`` threw, or its ``ConsumableLedger`` failed; the
+    /// transaction stays unfinished and is delivered again on the next ``Store/start()``, except a
+    /// refund that a copy of its purchase finished meanwhile (see ``Store/Delivery``). Holds the
+    /// error's description.
     case deliveryFailed(transactionID: UInt64, reason: String)
     /// The App Store or the network failed; holds the system's description.
     case storeKit(String)

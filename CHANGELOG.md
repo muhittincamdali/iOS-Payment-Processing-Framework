@@ -20,7 +20,9 @@ results; they are removed (see "Removed").
   `deliver` closure before finishing it, and keeps `entitlements` current, including a refresh at
   the next expiration date. Unverified transactions are never delivered or finished; a failed
   delivery leaves the transaction unfinished for the next launch. `deliver` receives a
-  `TransactionChange`, `.granted` or `.revoked`, so a refund cannot pass for a purchase.
+  `TransactionChange`, `.granted` or `.revoked`, so a refund cannot pass for a purchase. A
+  refund's access and coins end before its delivery, so they also end when the refund arrives
+  while its purchase is in `finish()`, which finishes the refund too.
 - `ConsumableLedger` and `.consumable(_:credits:to:)`: coin-style balances credited once per
   transaction and taken back once on a refund that StoreKit sends to the app, saved with the
   handled transactions in one atomic write; `Store.balance(of:)` and `Store.spend(_:of:)`.

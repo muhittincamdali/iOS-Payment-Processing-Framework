@@ -121,6 +121,76 @@ struct RevocationTests {
         store.stop()
     }
 
+    // StoreKit finishes by identifier: when a refund arrives while the purchase's finish() is
+    // under way, that finish() finishes the refund too, and StoreKit does not send it again even
+    // though its delivery failed. The coins must be gone by then.
+    @Test("a refund that arrives while its purchase is being finished takes the coins back even when its delivery fails")
+    func refundDuringFinish() async throws {
+        let clock = clock
+        let appStore = TestStoreClient(products: Fixtures.products) { clock.now }
+        let client = InterposingClient(appStore)
+        let ledger = ConsumableLedger(fileURL: nil)
+        let recorder = recorder
+        let store = Store(catalog: Fixtures.catalog, client: client, ledger: ledger, now: { clock.now }) { try recorder.deliver($0) }
+        await store.start()
+        await client.holdNextFinish()
+        let purchasing = Task { try await store.purchase(Fixtures.coins) }
+        #expect(await eventually { await client.isHoldingFinish })
+        #expect(store.balance(of: "coins") == 100)
+        let pack = try #require(await appStore.unfinishedTransactions().first?.transaction)
+
+        recorder.setFailing(true) // the refund cannot reach the server
+        try await appStore.refund(pack.id)
+        #expect(await eventually { store.lastError == .deliveryFailed(transactionID: pack.id, reason: "The wallet service is offline.") })
+        #expect(store.balance(of: "coins") == 0, "the refund takes the coins back before its delivery")
+        await client.releaseHeldFinish() // the purchase's finish() returns after the refund was handled
+        _ = try await purchasing.value
+
+        #expect(await appStore.unfinishedTransactionIDs.isEmpty, "finishing the purchase finished the refund")
+        #expect(store.balance(of: "coins") == 0)
+        #expect(try await ledger.balances()["coins"] == 0)
+        #expect(recorder.changes == [.granted(pack)])
+        store.stop()
+    }
+
+    @Test("a refund whose take-back fails while its purchase is being finished is taken back when that finish returns")
+    func refundTakeBackFailingDuringFinish() async throws {
+        let url = temporaryLedgerURL()
+        let directory = url.deletingLastPathComponent()
+        defer {
+            try? FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: directory.path)
+            try? FileManager.default.removeItem(at: directory)
+        }
+        let clock = clock
+        let appStore = TestStoreClient(products: Fixtures.products) { clock.now }
+        let client = InterposingClient(appStore)
+        let recorder = recorder
+        let store = Store(catalog: Fixtures.catalog, client: client, ledger: ConsumableLedger(fileURL: url), now: { clock.now }) { try recorder.deliver($0) }
+        await store.start()
+        await client.holdNextFinish()
+        let purchasing = Task { try await store.purchase(Fixtures.coins) }
+        #expect(await eventually { await client.isHoldingFinish })
+        #expect(store.balance(of: "coins") == 100)
+        let pack = try #require(await appStore.unfinishedTransactions().first?.transaction)
+
+        // The ledger cannot be saved while the refund is handled, so the refund throws.
+        try FileManager.default.setAttributes([.posixPermissions: 0o555], ofItemAtPath: directory.path)
+        try await appStore.refund(pack.id)
+        #expect(await eventually {
+            if case .deliveryFailed(pack.id, _) = store.lastError { true } else { false }
+        })
+        #expect(store.balance(of: "coins") == 100)
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: directory.path)
+        await client.releaseHeldFinish()
+        _ = try await purchasing.value
+
+        #expect(await appStore.unfinishedTransactionIDs.isEmpty, "finishing the purchase finished the refund, which does not come again")
+        #expect(store.balance(of: "coins") == 0)
+        #expect(try await ConsumableLedger(fileURL: url).balances()["coins"] == 0, "the ledger file still holds the refunded coins")
+        #expect(recorder.changes == [.granted(pack)], "the refund threw before its delivery")
+        store.stop()
+    }
+
     // An app update can drop a consumable from the catalog, leave it to `deliver`, or change
     // its credit; the coins its purchases credited are still in the ledger and must go back.
     @Test("a refund takes back what the ledger credited after an update changed the product", arguments: [

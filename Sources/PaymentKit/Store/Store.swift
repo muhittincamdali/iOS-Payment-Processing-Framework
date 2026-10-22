@@ -22,28 +22,38 @@ import Observation
 /// Every transaction goes through the same steps: transactions StoreKit cannot verify are
 /// rejected and never finished; verified ones are passed to `deliver` as a
 /// ``TransactionChange``, credited to the ``ConsumableLedger`` when they are consumables with a
-/// credit, finished only after both succeed, and then ``entitlements`` is recomputed.
+/// credit, finished only after both succeed, and then ``entitlements`` is recomputed. A refund
+/// is taken back first: ``entitlements`` is recomputed and the ledger takes back its coins
+/// before `deliver` runs.
 ///
 /// Access is never accumulated: ``entitlements`` is always computed again from StoreKit's
 /// current verified transactions, so a refund, a revocation, an expiry or an upgrade removes it.
-/// A refund reaches `deliver` as ``TransactionChange/revoked(_:)``, never as a new grant, and
-/// ``entitlements`` is recomputed before that call too, so the access ends even when `deliver`
-/// throws and the refund stays unfinished until it is delivered. A consumable's refund takes back
-/// what the ledger credited for that transaction, even after an app update removed the product
-/// from the catalog or changed its credit. StoreKit sends a consumable's refund only while its
-/// transaction is unfinished; the refund of a finished one reaches only your server (see
-/// ``ConsumableLedger``).
+/// A refund reaches `deliver` as ``TransactionChange/revoked(_:)``, never as a new grant, and its
+/// access and coins end before that call, so they end even when `deliver` throws. The refund then
+/// stays unfinished until it is delivered, with one exception: StoreKit finishes a transaction by
+/// its identifier, so a refund that arrives while a copy of its purchase is in `finish()` is
+/// finished by that call and is not sent again, even when its delivery threw. Only your server
+/// learns of that refund then, from a `REFUND` App Store Server Notification. A consumable's
+/// refund takes back what the ledger credited for that transaction, even after an app update
+/// removed the product from the catalog or changed its credit. StoreKit sends a consumable's
+/// refund only while its transaction is unfinished; the refund of a finished one reaches only
+/// your server (see ``ConsumableLedger``).
 ///
 /// A refund or revocation is final while the store runs: a copy of the same transaction without
 /// a revocation date that arrives after it, because StoreKit read it before the refund, is not
 /// delivered, credited or finished, and grants no access even while StoreKit still lists it. A
-/// copy whose delivery was under way when the refund arrived is neither credited nor finished.
+/// copy whose delivery was under way when the refund arrived is neither credited nor finished. A
+/// copy already in `finish()` when the refund arrived takes its coins back once `finish()`
+/// returns, in case the refund could not.
 @MainActor
 @Observable
 public final class Store {
     /// A closure that delivers what a transaction paid for: coins for a consumable, a call to
     /// your server with ``StoreTransaction/signedTransaction``. Throwing leaves the transaction
-    /// unfinished, so the App Store sends it again on the next ``start()``.
+    /// unfinished, so the App Store sends it again on the next ``start()``, except a refund that
+    /// arrived while a copy of its purchase was in `finish()`: that call finished the refund too
+    /// (see ``Store``). A refund's access and coins are taken back before this closure runs, so
+    /// they end either way.
     ///
     /// It runs at least once per transaction: StoreKit sends a transaction again when the app
     /// stops between `deliver` and `finish()`, so make it idempotent by transaction identifier
@@ -286,8 +296,8 @@ public final class Store {
     }
 
     /// Delivers, credits and finishes a verified transaction once, then recomputes the
-    /// entitlements. A refund recomputes them before delivery too, so its access ends even
-    /// when the delivery throws.
+    /// entitlements. A refund recomputes them and takes its coins back before delivery, so its
+    /// access and coins end even when the delivery throws.
     private func process(_ transaction: StoreTransaction) async throws {
         let key = TransactionKey(transaction)
         if key.isRevoked {
@@ -308,20 +318,35 @@ public final class Store {
         defer { inFlight.remove(key) }
 
         if key.isRevoked {
-            // Access ends before delivery: a refund whose delivery throws stays unfinished and
-            // comes again later, but grants nothing meanwhile. revokedIDs already holds it.
+            // Access and coins end before delivery. A refund whose delivery throws normally stays
+            // unfinished and comes again, but one that arrives while a copy of its purchase is in
+            // finish() is finished by that call and never comes again (see below). Taking back
+            // on a repeat takes nothing more. revokedIDs already holds it.
             await refreshEntitlements()
+            try await takeBackCredit(of: transaction)
         }
-        let change = TransactionChange(transaction)
-        try await deliver?(change)
+        try await deliver?(TransactionChange(transaction))
         // A refund can arrive while this copy is delivered or credited. Its delivery may have
         // failed, so the refund waits unfinished: crediting this copy would keep the coins, and
         // finishing it would finish the refund, which StoreKit finishes by identifier.
         guard !wasRevokedMeanwhile(key) else { return }
-        try await applyCredit(of: change)
+        if !key.isRevoked {
+            try await credit(transaction)
+        }
         guard !wasRevokedMeanwhile(key) else { return }
         await client.finish(transaction)
         handled.insert(key)
+        if wasRevokedMeanwhile(key) {
+            // The refund arrived during finish(), which finished it too, so StoreKit does not send
+            // it again even if it threw. It took the coins back before its delivery unless the
+            // ledger failed then, so take them back here as well; when they are back already,
+            // this changes nothing.
+            do {
+                try await takeBackCredit(of: transaction)
+            } catch {
+                lastError = .ledger(error)
+            }
+        }
         await refreshEntitlements()
     }
 
@@ -330,27 +355,35 @@ public final class Store {
         !key.isRevoked && revokedIDs.contains(key.id)
     }
 
-    /// Credits a consumable purchase to the ledger, or takes a refunded one back.
-    private func applyCredit(of change: TransactionChange) async throws {
-        let transaction = change.transaction
+    /// Credits a consumable purchase to the ledger, once per transaction.
+    private func credit(_ transaction: StoreTransaction) async throws(ConsumableLedger.Failure) {
+        guard let (account, amount) = try catalogCredit(of: transaction) else { return }
+        try await ledger.credit(amount, to: account, for: transaction.id)
+        balances = try await ledger.balances()
+    }
+
+    /// Takes back what a refunded consumable credited, once per transaction. A refund of a
+    /// purchase the ledger has not credited yet is remembered, so the purchase credits nothing.
+    private func takeBackCredit(of transaction: StoreTransaction) async throws(ConsumableLedger.Failure) {
         // A refund takes back what the ledger recorded, not what the catalog says now: an app
         // update may have removed the product, left it to `deliver` or changed its credit.
-        if case .revoked = change, transaction.productKind == .consumable,
-           try await ledger.revoke(transactionID: transaction.id) {
+        if transaction.productKind == .consumable, try await ledger.revoke(transactionID: transaction.id) {
             balances = try await ledger.balances()
             return
         }
-        guard let credit = credits[transaction.productID] else { return }
+        guard let (account, amount) = try catalogCredit(of: transaction) else { return }
+        try await ledger.revoke(amount, from: account, for: transaction.id)
+        balances = try await ledger.balances()
+    }
+
+    /// The account and amount the catalog credits for a transaction, or `nil` when its product
+    /// credits nothing.
+    private func catalogCredit(of transaction: StoreTransaction) throws(ConsumableLedger.Failure) -> (account: String, amount: Int64)? {
+        guard let credit = credits[transaction.productID] else { return nil }
         // purchasedQuantity is at most PurchaseOptions.maximumQuantity, so the conversion is exact.
         let (amount, overflow) = credit.amount.multipliedReportingOverflow(by: Int64(transaction.purchasedQuantity))
-        guard !overflow else { throw ConsumableLedger.Failure.overflow(account: credit.account) }
-        switch change {
-        case .granted:
-            try await ledger.credit(amount, to: credit.account, for: transaction.id)
-        case .revoked:
-            try await ledger.revoke(amount, from: credit.account, for: transaction.id)
-        }
-        balances = try await ledger.balances()
+        guard !overflow else { throw .overflow(account: credit.account) }
+        return (credit.account, amount)
     }
 
     private func scheduleExpiryRefresh() {
