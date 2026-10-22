@@ -72,12 +72,9 @@ final class PaymentLabUITests: XCTestCase {
         app.tabBars.buttons["Card"].tap()
         let number = app.textFields["card.number"]
         XCTAssertTrue(number.waitForExistence(timeout: 5))
-        number.tap()
-        number.typeText("4242424242424241")
-        app.textFields["card.expiry"].tap()
-        app.textFields["card.expiry"].typeText("13/30")
-        app.textFields["card.code"].tap()
-        app.textFields["card.code"].typeText("12")
+        enter("4242424242424241", into: number)
+        enter("13/30", into: app.textFields["card.expiry"])
+        enter("12", into: app.textFields["card.code"])
         app.buttons["card.check"].tap()
         XCTAssertTrue(waitForText("Check the card number for a typo.", timeout: 5))
         XCTAssertTrue(waitForText("The expiry month must be 01 to 12.", timeout: 5))
@@ -86,12 +83,12 @@ final class PaymentLabUITests: XCTestCase {
         save("card")
 
         clear(number)
-        number.typeText("378282246310005")
+        enter("378282246310005", into: number)
         XCTAssertEqual(number.value as? String, "3782 822463 10005")
         clear(app.textFields["card.expiry"])
-        app.textFields["card.expiry"].typeText("09/30")
+        enter("09/30", into: app.textFields["card.expiry"])
         clear(app.textFields["card.code"])
-        app.textFields["card.code"].typeText("1234")
+        enter("1234", into: app.textFields["card.code"])
         app.buttons["card.check"].tap()
         XCTAssertTrue(waitForText("americanExpress •••• 0005 09/30", timeout: 5))
     }
@@ -100,6 +97,24 @@ final class PaymentLabUITests: XCTestCase {
 
     private func element(_ identifier: String) -> XCUIElement {
         app.descendants(matching: .any)[identifier].firstMatch
+    }
+
+    /// Types into a field one key at a time and waits until the field has taken each one. The
+    /// form formats as you type, and `typeText` with a whole string loses the keys that arrive
+    /// while a slow simulator is still showing the keyboard or reformatting the text: the first
+    /// field of a run on GitHub's macos-26 image kept "4242 4242 42" of a 16-digit number.
+    private func enter(_ text: String, into field: XCUIElement) {
+        field.tap()
+        XCTAssertTrue(app.keyboards.firstMatch.waitForExistence(timeout: 20), "The keyboard did not appear")
+        for character in text {
+            let before = field.value as? String
+            field.typeText(String(character))
+            // A "/" that the field added itself changes nothing, so the wait has a limit.
+            let deadline = Date().addingTimeInterval(2)
+            while (field.value as? String) == before, Date() < deadline {
+                RunLoop.current.run(until: Date().addingTimeInterval(0.05))
+            }
+        }
     }
 
     private func clear(_ field: XCUIElement) {
